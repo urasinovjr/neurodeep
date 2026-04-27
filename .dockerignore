@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.vscode
+.idea
+.git
+.gitignore
+.eslintcache
+
+backend
+nlp_service
+psychograph_documentation
+.claude

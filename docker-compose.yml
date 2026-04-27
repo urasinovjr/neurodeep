@@ -1,0 +1,143 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: psychograph_postgres
+    environment:
+      POSTGRES_DB: psychograph
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d psychograph"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: psychograph_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: psychograph_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: psychograph
+      MINIO_ROOT_PASSWORD: psychograph_minio_dev
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || curl -f http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: psychograph_mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    profiles:
+      - dev-email
+
+  backend:
+    build:
+      context: ./backend
+    container_name: psychograph_backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/psychograph
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: change-me-dev-jwt-secret
+      ENCRYPTION_KEY: change-me-dev-encryption-key-32b
+      CSRF_SECRET: change-me-dev-csrf-secret
+      ACCESS_TOKEN_EXPIRE_MINUTES: 15
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+      NLP_SERVICE_URL: http://nlp_service:8001
+      CELERY_BROKER_URL: redis://redis:6379/0
+    ports:
+      - "8010:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  nlp_service:
+    build:
+      context: ./nlp_service
+    container_name: psychograph_nlp
+    environment:
+      MODEL_NAME: DeepPavlov/rubert-base-cased
+      MODEL_CACHE_DIR: /opt/hf-cache
+      MAX_TEXT_LENGTH: 4000
+      BATCH_SIZE: 8
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  celery_worker:
+    build:
+      context: ./backend
+    container_name: psychograph_celery
+    command: celery -A app.tasks.celery_app worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/psychograph
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      NLP_SERVICE_URL: http://nlp_service:8001
+    depends_on:
+      redis:
+        condition: service_healthy
+      nlp_service:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: psychograph_frontend
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:8000
+    ports:
+      - "3000:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./src:/app/src
+      - ./index.html:/app/index.html
+      - ./vite.config.ts:/app/vite.config.ts
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./tsconfig.app.json:/app/tsconfig.app.json
+      - ./tsconfig.node.json:/app/tsconfig.node.json
+      - ./eslint.config.js:/app/eslint.config.js
+      - /app/node_modules
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:

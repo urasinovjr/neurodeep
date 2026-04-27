@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: no-text-storage
+        name: No-text-storage policy (PsychoGraph)
+        entry: bash scripts/check-no-text-storage.sh
+        language: system
+        pass_filenames: false
+        always_run: true

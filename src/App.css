@@ -1,0 +1,62 @@
+.app-shell {
+  max-width: 720px;
+  margin: 64px auto;
+  padding: 32px 24px;
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
+}
+
+.app-shell h1 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #5260ff;
+}
+
+.app-shell p {
+  margin: 0 0 8px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.app-subtitle {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.app-health {
+  margin-top: 20px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.app-health strong {
+  font-weight: 600;
+}
+
+.app-health--loading strong {
+  color: #64748b;
+}
+
+.app-health--ok strong {
+  color: #22c55e;
+}
+
+.app-health--error strong {
+  color: #ef4444;
+}
+
+.app-api-base {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.app-api-base code {
+  padding: 2px 6px;
+  background-color: #f1f5f9;
+  border-radius: 4px;
+  font-size: 12px;
+}
