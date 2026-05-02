@@ -24,7 +24,8 @@ from app.core.security import (
     verify_password,
 )
 from app.db.models import User, UserRole
-from app.db.repositories import AuditLogRepository, SessionRepository, UserRepository
+from app.db.repositories import SessionRepository, UserRepository
+from app.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
 
@@ -48,11 +49,11 @@ class AuthService:
         self,
         user_repo: UserRepository,
         session_repo: SessionRepository,
-        audit_repo: AuditLogRepository,
+        audit_service: AuditService,
     ) -> None:
         self.user_repo = user_repo
         self.session_repo = session_repo
-        self.audit_repo = audit_repo
+        self.audit_service = audit_service
 
     async def register(
         self,
@@ -86,7 +87,7 @@ class AuthService:
             email_verification_token=verification_token,
         )
 
-        await self.audit_repo.log(action="auth.register", user_id=user.id)
+        await self.audit_service.log(action="auth.register", user_id=user.id)
         logger.info(
             "Email verification link for %s: /api/auth/verify-email?token=%s",
             email,
@@ -103,7 +104,7 @@ class AuthService:
         user.email_verification_token = None
         await self.user_repo.update(user, email_verified=True, email_verification_token=None)
 
-        await self.audit_repo.log(action="auth.email_verified", user_id=user.id)
+        await self.audit_service.log(action="auth.email_verified", user_id=user.id)
         return user
 
     async def login(
@@ -131,7 +132,7 @@ class AuthService:
                 failed_login_attempts=user.failed_login_attempts,
                 locked_until=user.locked_until,
             )
-            await self.audit_repo.log(action="auth.login_failed", user_id=user.id, ip_address=ip)
+            await self.audit_service.log(action="auth.login_failed", user_id=user.id, ip_address=ip)
             raise AuthenticationError("Неверный email или пароль")
 
         user.failed_login_attempts = 0
@@ -154,7 +155,7 @@ class AuthService:
         refresh_token_hash = _hash_refresh_token(refresh_token)
         await self.session_repo.update(session, refresh_token_hash=refresh_token_hash)
 
-        await self.audit_repo.log(action="auth.login_success", user_id=user.id, ip_address=ip)
+        await self.audit_service.log(action="auth.login_success", user_id=user.id, ip_address=ip)
         access_token = create_access_token(user.id)
         return access_token, refresh_token, csrf_token
 
@@ -197,7 +198,7 @@ class AuthService:
         new_refresh_token_hash = _hash_refresh_token(new_refresh_token)
         await self.session_repo.update(new_session, refresh_token_hash=new_refresh_token_hash)
 
-        await self.audit_repo.log(action="auth.login_success", user_id=user_id)
+        await self.audit_service.log(action="auth.login_success", user_id=user_id)
         access_token = create_access_token(user_id)
         return access_token, new_refresh_token, csrf_token
 
@@ -207,7 +208,7 @@ class AuthService:
             raise NotFoundError("Сессия не найдена")
 
         await self.session_repo.deactivate(session)
-        await self.audit_repo.log(action="auth.logout", user_id=session.user_id)
+        await self.audit_service.log(action="auth.logout", user_id=session.user_id)
 
     async def password_reset_request(self, email: str) -> None:
         user = await self.user_repo.get_by_email(email)
@@ -217,7 +218,7 @@ class AuthService:
         reset_token = secrets.token_urlsafe(32)
         await self.user_repo.update(user, password_reset_token=reset_token)
 
-        await self.audit_repo.log(action="auth.password_reset_request", user_id=user.id)
+        await self.audit_service.log(action="auth.password_reset_request", user_id=user.id)
         logger.info(
             "Password reset link for %s: /api/auth/change-password?token=%s",
             email,
@@ -254,5 +255,5 @@ class AuthService:
         await self.user_repo.update(user, password_hash=user.password_hash, password_reset_token=None)
 
         await self.session_repo.deactivate_all_by_user(user.id)
-        await self.audit_repo.log(action="auth.password_change", user_id=user.id)
+        await self.audit_service.log(action="auth.password_change", user_id=user.id)
 

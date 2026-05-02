@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.core.exceptions import AlreadyExistsError, AuthenticationError, ForbiddenError, LockedError
 from app.db.models import AuditLog, Base, UserRole
 from app.db.repositories import AuditLogRepository, SessionRepository, UserRepository
+from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
 
 
@@ -32,7 +33,7 @@ async def test_register_creates_user_in_pending_and_audit_record(db_session: Asy
     service = AuthService(
         user_repo=UserRepository(db_session),
         session_repo=SessionRepository(db_session),
-        audit_repo=AuditLogRepository(db_session),
+        audit_service=AuditService(AuditLogRepository(db_session)),
     )
 
     user = await service.register(
@@ -58,7 +59,7 @@ async def test_register_with_existing_email_raises_already_exists(db_session: As
     user_repo = UserRepository(db_session)
     session_repo = SessionRepository(db_session)
     audit_repo = AuditLogRepository(db_session)
-    service = AuthService(user_repo=user_repo, session_repo=session_repo, audit_repo=audit_repo)
+    service = AuthService(user_repo=user_repo, session_repo=session_repo, audit_service=AuditService(audit_repo))
 
     await service.register(
         email="dup@example.com",
@@ -84,7 +85,7 @@ async def test_login_lockout_after_five_failed_attempts(db_session: AsyncSession
     service = AuthService(
         user_repo=UserRepository(db_session),
         session_repo=SessionRepository(db_session),
-        audit_repo=AuditLogRepository(db_session),
+        audit_service=AuditService(AuditLogRepository(db_session)),
     )
 
     await service.register(
@@ -120,7 +121,7 @@ async def test_refresh_with_wrong_csrf_raises_forbidden(db_session: AsyncSession
     service = AuthService(
         user_repo=UserRepository(db_session),
         session_repo=SessionRepository(db_session),
-        audit_repo=AuditLogRepository(db_session),
+        audit_service=AuditService(AuditLogRepository(db_session)),
     )
 
     await service.register(
