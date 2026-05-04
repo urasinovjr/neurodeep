@@ -64,11 +64,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   async function requestPasswordReset(email: string): Promise<void> {
-    await apiClient.post<void>('/auth/password-reset/request', { email })
+    await apiClient.post<void>('/auth/password-reset-request', { email })
   }
 
   async function changePassword(oldPassword: string, newPassword: string): Promise<void> {
-    await apiClient.post<void>('/auth/password/change', {
+    await apiClient.post<void>('/auth/change-password', {
       old_password: oldPassword,
       new_password: newPassword,
     })

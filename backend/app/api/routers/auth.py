@@ -3,7 +3,9 @@ from fastapi import APIRouter, Cookie, Depends, Header, Request, Response
 
 from app.api.deps import get_auth_service, get_current_user, get_optional_current_user
 from app.core.config import settings
+from app.core.exceptions import AuthenticationError
 from app.core.limiter import limiter
+from app.core.security import decode_token
 from app.db.models import User
 from app.schemas.auth_schemas import (
     ChangePasswordRequest,
@@ -58,7 +60,7 @@ async def login(
         key="refresh_token",
         value=refresh,
         httponly=True,
-        secure=True,
+        secure=settings.SESSION_COOKIE_SECURE,
         samesite="strict",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
     )
@@ -83,7 +85,7 @@ async def refresh(
         key="refresh_token",
         value=new_refresh,
         httponly=True,
-        secure=True,
+        secure=settings.SESSION_COOKIE_SECURE,
         samesite="strict",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
     )
@@ -100,8 +102,6 @@ async def logout(
     refresh_token: str | None = Cookie(None),  # noqa: B008
 ):
     if refresh_token:
-        from app.core.exceptions import AuthenticationError
-        from app.core.security import decode_token
         try:
             claims = decode_token(refresh_token)
             session_id = int(claims.get("session_id", 0))

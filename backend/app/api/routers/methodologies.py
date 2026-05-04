@@ -1,8 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query, Request
 
-from app.api.deps import ActorIdDep, IsAdminDep, MethodologyServiceDep
+from app.api.deps import MethodologyServiceDep, require_role
+from app.core.limiter import limiter
+from app.db.models import User, UserRole
 from app.schemas.methodology_schemas import (
     MethodologyCreateRequest,
     MethodologyResponse,
@@ -16,10 +18,15 @@ from app.schemas.methodology_schemas import (
 
 router = APIRouter(prefix="/api/admin/methodologies", tags=["admin-methodologies"])
 
+AdminUserDep = Annotated[User, Depends(require_role(UserRole.ADMIN))]
+
 
 @router.get("", response_model=list[MethodologyResponse])
+@limiter.limit("30/minute")
 async def list_methodologies(
+    request: Request,
     service: MethodologyServiceDep,
+    admin: AdminUserDep,
     status: Annotated[str | None, Query()] = None,
     search: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
@@ -30,24 +37,27 @@ async def list_methodologies(
 
 
 @router.post("", response_model=MethodologyResponse, status_code=201)
+@limiter.limit("30/minute")
 async def create_methodology(
+    request: Request,
     data: MethodologyCreateRequest,
-    actor_id: ActorIdDep,
     service: MethodologyServiceDep,
+    admin: AdminUserDep,
 ) -> MethodologyResponse:
-    methodology = await service.create(actor_id, data)
+    methodology = await service.create(admin.id, data)
     return MethodologyResponse.model_validate(methodology)
 
 
 @router.patch("/{methodology_id}", response_model=MethodologyResponse)
+@limiter.limit("30/minute")
 async def update_methodology(
+    request: Request,
     methodology_id: int,
     data: MethodologyUpdateRequest,
-    actor_id: ActorIdDep,
-    is_admin: IsAdminDep,
     service: MethodologyServiceDep,
+    admin: AdminUserDep,
 ) -> MethodologyResponse:
-    methodology = await service.update(methodology_id, data, actor_id, is_admin)
+    methodology = await service.update(methodology_id, data, admin.id, True)
     return MethodologyResponse.model_validate(methodology)
 
 
@@ -56,14 +66,15 @@ async def update_methodology(
     response_model=ScaleResponse,
     status_code=201,
 )
+@limiter.limit("30/minute")
 async def add_scale(
+    request: Request,
     methodology_id: int,
     data: ScaleCreateRequest,
-    actor_id: ActorIdDep,
-    is_admin: IsAdminDep,
     service: MethodologyServiceDep,
+    admin: AdminUserDep,
 ) -> ScaleResponse:
-    scale = await service.add_scale(methodology_id, data, actor_id, is_admin)
+    scale = await service.add_scale(methodology_id, data, admin.id, True)
     return ScaleResponse.model_validate(scale)
 
 
@@ -72,12 +83,13 @@ async def add_scale(
     response_model=QuestionResponse,
     status_code=201,
 )
+@limiter.limit("30/minute")
 async def add_question(
+    request: Request,
     methodology_id: int,
     data: QuestionCreateRequest,
-    actor_id: ActorIdDep,
-    is_admin: IsAdminDep,
     service: MethodologyServiceDep,
+    admin: AdminUserDep,
 ) -> QuestionResponse:
     weights = (
         QuestionScaleSetRequest(weights=data.scale_weights)
@@ -85,28 +97,30 @@ async def add_question(
         else None
     )
     question = await service.add_question(
-        methodology_id, data, weights, actor_id, is_admin
+        methodology_id, data, weights, admin.id, True
     )
     return QuestionResponse.model_validate(question)
 
 
 @router.post("/{methodology_id}/publish", response_model=MethodologyResponse)
+@limiter.limit("30/minute")
 async def publish_methodology(
+    request: Request,
     methodology_id: int,
-    actor_id: ActorIdDep,
-    is_admin: IsAdminDep,
     service: MethodologyServiceDep,
+    admin: AdminUserDep,
 ) -> MethodologyResponse:
-    methodology = await service.publish(methodology_id, actor_id, is_admin)
+    methodology = await service.publish(methodology_id, admin.id, True)
     return MethodologyResponse.model_validate(methodology)
 
 
 @router.post("/{methodology_id}/archive", response_model=MethodologyResponse)
+@limiter.limit("30/minute")
 async def archive_methodology(
+    request: Request,
     methodology_id: int,
-    actor_id: ActorIdDep,
-    is_admin: IsAdminDep,
     service: MethodologyServiceDep,
+    admin: AdminUserDep,
 ) -> MethodologyResponse:
-    methodology = await service.archive(methodology_id, actor_id, is_admin)
+    methodology = await service.archive(methodology_id, admin.id, True)
     return MethodologyResponse.model_validate(methodology)

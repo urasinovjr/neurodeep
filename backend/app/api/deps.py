@@ -95,15 +95,5 @@ async def get_methodology_service(session: SessionDep) -> MethodologyService:
     )
 
 
-def get_actor_id() -> int:
-    return 1
-
-
-def get_is_admin() -> bool:
-    return True
-
-
 MethodologyServiceDep = Annotated[MethodologyService, Depends(get_methodology_service)]
-ActorIdDep = Annotated[int, Depends(get_actor_id)]
-IsAdminDep = Annotated[bool, Depends(get_is_admin)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]

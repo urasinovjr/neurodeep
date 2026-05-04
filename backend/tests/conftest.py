@@ -49,13 +49,28 @@ async def db_session() -> AsyncIterator[AsyncSession]:
 async def api_client(db_session: AsyncSession) -> AsyncIterator["AsyncClient"]:
     from httpx import ASGITransport, AsyncClient
 
-    from app.api.deps import get_db
+    from app.api.deps import get_current_user, get_db
+    from app.db.models import User, UserRole, UserStatus
     from app.main import app
 
     async def override_db() -> AsyncIterator[AsyncSession]:
         yield db_session
 
+    async def override_admin_user() -> User:
+        return User(
+            id=1,
+            email="admin@test.local",
+            password_hash="x",
+            first_name="Admin",
+            last_name="Test",
+            role=UserRole.ADMIN,
+            status=UserStatus.ACTIVE,
+            email_verified=True,
+            failed_login_attempts=0,
+        )
+
     app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = override_admin_user
     try:
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"

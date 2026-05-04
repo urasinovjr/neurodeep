@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     NLP_SERVICE_URL: str = "http://localhost:8001"
+    SESSION_COOKIE_SECURE: bool = False
 
     CELERY_BROKER_URL: str = Field(..., min_length=1)
     CELERY_RESULT_BACKEND: str | None = None

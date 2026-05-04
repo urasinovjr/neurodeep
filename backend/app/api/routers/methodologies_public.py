@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from app.api.deps import MethodologyServiceDep
 from app.core.exceptions import NotFoundError
+from app.core.limiter import limiter
 from app.schemas.methodology_schemas import (
     MethodologyBriefResponse,
     MethodologyDetailResponse,
@@ -13,7 +14,9 @@ router = APIRouter(prefix="/api/methodologies", tags=["methodologies"])
 
 
 @router.get("", response_model=list[MethodologyBriefResponse])
+@limiter.limit("100/minute")
 async def list_published_methodologies(
+    request: Request,
     service: MethodologyServiceDep,
 ) -> list[MethodologyBriefResponse]:
     methodologies = await service.methodology_repo.list_published_with_scales()
@@ -26,7 +29,9 @@ async def list_published_methodologies(
 
 
 @router.get("/{methodology_id}", response_model=MethodologyDetailResponse)
+@limiter.limit("100/minute")
 async def get_methodology_detail(
+    request: Request,
     methodology_id: int,
     service: MethodologyServiceDep,
 ) -> MethodologyDetailResponse:

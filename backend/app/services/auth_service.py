@@ -198,7 +198,7 @@ class AuthService:
         new_refresh_token_hash = _hash_refresh_token(new_refresh_token)
         await self.session_repo.update(new_session, refresh_token_hash=new_refresh_token_hash)
 
-        await self.audit_service.log(action="auth.login_success", user_id=user_id)
+        await self.audit_service.log(action="auth.token_refreshed", user_id=user_id)
         access_token = create_access_token(user_id)
         return access_token, new_refresh_token, csrf_token
 
