@@ -57,7 +57,7 @@ async def test_publish_without_scales_raises(db_session: AsyncSession) -> None:
     )
     with pytest.raises(UnprocessableError) as exc:
         await service.publish(m.id, actor_id=1, is_admin=False)
-    assert "шкал" in exc.value.detail
+    assert "шкал" in exc.value.message
 
 
 async def test_publish_with_3_scales_and_5_questions_ok(db_session: AsyncSession) -> None:
@@ -108,7 +108,7 @@ async def test_publish_with_4_scales_2_questions_raises(db_session: AsyncSession
         )
     with pytest.raises(UnprocessableError) as exc:
         await service.publish(m.id, actor_id=1, is_admin=False)
-    assert "вопрос" in exc.value.detail.lower()
+    assert "вопрос" in exc.value.message.lower()
 
 
 async def test_archive_with_active_surveys_raises_conflict(
@@ -184,7 +184,7 @@ async def test_publish_already_published_raises(db_session: AsyncSession) -> Non
     await service.publish(m.id, actor_id=1, is_admin=False)
     with pytest.raises(UnprocessableError) as exc:
         await service.publish(m.id, actor_id=1, is_admin=False)
-    assert "draft" in exc.value.detail.lower()
+    assert "draft" in exc.value.message.lower()
 
 
 async def test_add_question_with_scale_weights(db_session: AsyncSession) -> None:

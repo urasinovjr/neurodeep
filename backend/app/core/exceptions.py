@@ -1,41 +1,47 @@
-from fastapi import HTTPException
+class AppError(Exception):
+    status_code = 500
+    default_message = "Внутренняя ошибка сервера"
+
+    def __init__(self, message: str | None = None) -> None:
+        self.message = message or self.default_message
+        super().__init__(self.message)
 
 
-class NotFoundError(HTTPException):
-    def __init__(self, detail: str = "Не найдено") -> None:
-        super().__init__(status_code=404, detail=detail)
+class NotFoundError(AppError):
+    status_code = 404
+    default_message = "Объект не найден"
 
 
-class AlreadyExistsError(HTTPException):
-    def __init__(self, detail: str = "Уже существует") -> None:
-        super().__init__(status_code=400, detail=detail)
+class AlreadyExistsError(AppError):
+    status_code = 400
+    default_message = "Объект уже существует"
 
 
-class AuthenticationError(HTTPException):
-    def __init__(self, detail: str = "Не авторизован") -> None:
-        super().__init__(status_code=401, detail=detail)
+class AuthenticationError(AppError):
+    status_code = 401
+    default_message = "Ошибка аутентификации"
 
 
-class ForbiddenError(HTTPException):
-    def __init__(self, detail: str = "Доступ запрещён") -> None:
-        super().__init__(status_code=403, detail=detail)
+class ForbiddenError(AppError):
+    status_code = 403
+    default_message = "Доступ запрещен"
 
 
-class ConflictError(HTTPException):
-    def __init__(self, detail: str = "Конфликт состояния") -> None:
-        super().__init__(status_code=409, detail=detail)
+class ConflictError(AppError):
+    status_code = 409
+    default_message = "Конфликт данных"
 
 
-class GoneError(HTTPException):
-    def __init__(self, detail: str = "Ресурс больше недоступен") -> None:
-        super().__init__(status_code=410, detail=detail)
+class GoneError(AppError):
+    status_code = 410
+    default_message = "Ресурс больше недоступен"
 
 
-class UnprocessableError(HTTPException):
-    def __init__(self, detail: str = "Невозможно обработать") -> None:
-        super().__init__(status_code=422, detail=detail)
+class UnprocessableError(AppError):
+    status_code = 422
+    default_message = "Данные не прошли бизнес-валидацию"
 
 
-class LockedError(HTTPException):
-    def __init__(self, detail: str = "Ресурс заблокирован") -> None:
-        super().__init__(status_code=423, detail=detail)
+class LockedError(AppError):
+    status_code = 423
+    default_message = "Ресурс заблокирован"
