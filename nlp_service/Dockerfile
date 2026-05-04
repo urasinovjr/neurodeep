@@ -18,6 +18,8 @@ RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu 
 
 RUN python -c "from transformers import AutoTokenizer, AutoModel; AutoTokenizer.from_pretrained('DeepPavlov/rubert-base-cased'); AutoModel.from_pretrained('DeepPavlov/rubert-base-cased')"
 
+RUN python -c "from transformers import AutoTokenizer, AutoModelForSequenceClassification; AutoTokenizer.from_pretrained('seara/rubert-tiny2-russian-sentiment'); AutoModelForSequenceClassification.from_pretrained('seara/rubert-tiny2-russian-sentiment')"
+
 COPY . .
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]

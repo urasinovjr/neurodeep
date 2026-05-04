@@ -1,47 +1,44 @@
-import { useEffect, useState } from 'react'
-import './App.css'
+import HomePage from './pages/home'
+import RegisterPage from './pages/register'
+import LoginPage from './pages/login'
+import SurveyPage from './pages/survey'
+import ChatPage from './pages/chat'
+import HrDashboardPage from './pages/hr-dashboard'
+import AdminMethodologiesPage from './pages/admin-methodologies'
+import NotFoundPage from './pages/not-found'
+import { useAuth } from './shared/auth'
 
-type HealthStatus = 'loading' | 'ok' | 'error'
+const PUBLIC_PATHS: readonly string[] = ['/', '/register', '/login', '/404']
+const PUBLIC_PREFIXES: readonly string[] = ['/s/', '/chat/']
 
-const HEALTH_LABELS: Record<HealthStatus, string> = {
-  loading: 'проверяется…',
-  ok: 'OK',
-  error: 'недоступен',
+function isPublicPath(path: string): boolean {
+  if (PUBLIC_PATHS.includes(path)) return true
+  return PUBLIC_PREFIXES.some((prefix) => path.startsWith(prefix))
 }
 
 export default function App() {
-  const apiBase = import.meta.env.VITE_API_BASE_URL ?? '/api'
-  const [status, setStatus] = useState<HealthStatus>('loading')
+  const { user, isLoading } = useAuth()
+  const path = window.location.pathname
 
-  useEffect(() => {
-    let active = true
-    async function check() {
-      try {
-        const response = await fetch(`${apiBase}/health`)
-        if (!active) return
-        setStatus(response.ok ? 'ok' : 'error')
-      } catch {
-        if (!active) return
-        setStatus('error')
-      }
-    }
-    void check()
-    return () => {
-      active = false
-    }
-  }, [apiBase])
+  if (isLoading) {
+    return (
+      <main className="page-shell">
+        <p>Загрузка…</p>
+      </main>
+    )
+  }
 
-  return (
-    <main className="app-shell">
-      <h1>PsychoGraph</h1>
-      <p>Веб-платформа психологической диагностики через чат с NLP-анализом.</p>
-      <p className="app-subtitle">Каркас инициализирован. Реализация UI — в TASK-060 и далее.</p>
-      <p className={`app-health app-health--${status}`}>
-        Статус backend: <strong>{HEALTH_LABELS[status]}</strong>
-      </p>
-      <p className="app-api-base">
-        API base URL: <code>{apiBase}</code>
-      </p>
-    </main>
-  )
+  if (!user && !isPublicPath(path)) {
+    window.location.replace('/login')
+    return null
+  }
+
+  if (path === '/') return <HomePage />
+  if (path === '/register') return <RegisterPage />
+  if (path === '/login') return <LoginPage />
+  if (path.startsWith('/s/')) return <SurveyPage />
+  if (path.startsWith('/chat/')) return <ChatPage />
+  if (path === '/hr/dashboard') return <HrDashboardPage />
+  if (path === '/admin/methodologies') return <AdminMethodologiesPage />
+  return <NotFoundPage />
 }

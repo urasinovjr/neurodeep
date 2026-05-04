@@ -70,6 +70,9 @@ services:
       REFRESH_TOKEN_EXPIRE_DAYS: 7
       NLP_SERVICE_URL: http://nlp_service:8001
       CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      MINIO_ROOT_USER: psychograph
+      MINIO_ROOT_PASSWORD: psychograph_minio_dev
     ports:
       - "8010:8000"
     depends_on:
@@ -95,8 +98,8 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 30s
+      retries: 60
+      start_period: 600s
 
   celery_worker:
     build:
@@ -107,6 +110,12 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/psychograph
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      JWT_SECRET: change-me-dev-jwt-secret
+      ENCRYPTION_KEY: change-me-dev-encryption-key-32b
+      CSRF_SECRET: change-me-dev-csrf-secret
+      MINIO_ROOT_USER: psychograph
+      MINIO_ROOT_PASSWORD: psychograph_minio_dev
       NLP_SERVICE_URL: http://nlp_service:8001
     depends_on:
       redis:
@@ -115,6 +124,48 @@ services:
         condition: service_started
     volumes:
       - ./backend:/app
+
+  seed_methodologies:
+    build:
+      context: ./backend
+    container_name: psychograph_seed
+    command: python scripts/seed_methodologies.py
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/psychograph
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: change-me-dev-jwt-secret
+      ENCRYPTION_KEY: change-me-dev-encryption-key-32b
+      CSRF_SECRET: change-me-dev-csrf-secret
+      MINIO_ROOT_USER: psychograph
+      MINIO_ROOT_PASSWORD: psychograph_minio_dev
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - seed
+
+  seed_adaptive_bank:
+    build:
+      context: ./backend
+    container_name: psychograph_seed_adaptive
+    command: python scripts/seed_adaptive_bank.py
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/psychograph
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: change-me-dev-jwt-secret
+      ENCRYPTION_KEY: change-me-dev-encryption-key-32b
+      CSRF_SECRET: change-me-dev-csrf-secret
+      MINIO_ROOT_USER: psychograph
+      MINIO_ROOT_PASSWORD: psychograph_minio_dev
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - seed
 
   frontend:
     build:

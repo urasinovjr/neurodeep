@@ -1,11 +1,11 @@
-import os
-
 from celery import Celery
+
+from app.core.config import settings
 
 celery_app = Celery(
     "psychograph",
-    broker=os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0"),
-    backend=os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0"),
+    broker=settings.CELERY_BROKER_URL,
+    backend=settings.CELERY_RESULT_BACKEND or settings.CELERY_BROKER_URL,
 )
 
 celery_app.conf.update(
@@ -15,4 +15,11 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    task_acks_late=True,
+    worker_prefetch_multiplier=1,
 )
+
+
+@celery_app.task(name="ping")
+def ping() -> str:
+    return "pong"

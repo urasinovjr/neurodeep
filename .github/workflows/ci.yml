@@ -50,6 +50,7 @@ jobs:
           CSRF_SECRET: ci-csrf-secret
           MINIO_ROOT_USER: ci-minio-user
           MINIO_ROOT_PASSWORD: ci-minio-password
+          CELERY_BROKER_URL: redis://localhost:6379/0
         run: pytest
 
   frontend:

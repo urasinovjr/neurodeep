@@ -1,0 +1,38 @@
+.ui-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ui-spinner__circle {
+  display: block;
+  border-radius: 50%;
+  border-style: solid;
+  border-color: var(--color-border);
+  border-top-color: var(--color-primary);
+  animation: ui-spinner-rotate 0.8s linear infinite;
+}
+
+.ui-spinner--small .ui-spinner__circle {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+
+.ui-spinner--medium .ui-spinner__circle {
+  width: 24px;
+  height: 24px;
+  border-width: 3px;
+}
+
+.ui-spinner--large .ui-spinner__circle {
+  width: 36px;
+  height: 36px;
+  border-width: 4px;
+}
+
+@keyframes ui-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}

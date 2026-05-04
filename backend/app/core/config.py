@@ -22,5 +22,8 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     NLP_SERVICE_URL: str = "http://localhost:8001"
 
+    CELERY_BROKER_URL: str = Field(..., min_length=1)
+    CELERY_RESULT_BACKEND: str | None = None
+
 
 settings = Settings()

@@ -1,0 +1,44 @@
+.ui-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.ui-logo__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background-color: var(--color-primary);
+  color: var(--color-surface);
+  border-radius: var(--radius-md);
+  font-size: 18px;
+}
+
+.ui-logo--small {
+  font-size: 14px;
+}
+
+.ui-logo--small .ui-logo__mark {
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+}
+
+.ui-logo--medium {
+  font-size: 18px;
+}
+
+.ui-logo--large {
+  font-size: 24px;
+}
+
+.ui-logo--large .ui-logo__mark {
+  width: 44px;
+  height: 44px;
+  font-size: 24px;
+}

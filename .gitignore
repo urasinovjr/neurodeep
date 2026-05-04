@@ -24,3 +24,12 @@ pnpm-debug.log*
 *.sw?
 
 .eslintcache
+
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
