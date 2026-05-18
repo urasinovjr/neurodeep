@@ -129,6 +129,7 @@ async def get_session_service(
         survey_repo=SurveyRepository(session),
         session_repo=SurveySessionRepository(session),
         question_repo=QuestionRepository(session),
+        scale_repo=ScaleRepository(session),
         scale_score_repo=ScaleScoreRepository(session),
         methodology_repo=MethodologyRepository(session),
         redis_client=redis_client,

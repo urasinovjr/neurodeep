@@ -3,7 +3,6 @@ import uuid
 from datetime import UTC, datetime
 
 import redis.asyncio as aioredis
-from sqlalchemy import select
 
 from app.core.exceptions import (
     ConflictError,
@@ -13,7 +12,6 @@ from app.core.exceptions import (
 )
 from app.db.models import (
     Question,
-    Scale,
     ScaleScore,
     Survey,
     SurveySession,
@@ -21,6 +19,7 @@ from app.db.models import (
 from app.db.repositories import (
     MethodologyRepository,
     QuestionRepository,
+    ScaleRepository,
     ScaleScoreRepository,
     SurveyRepository,
     SurveySessionRepository,
@@ -41,6 +40,7 @@ class SurveySessionService:
         survey_repo: SurveyRepository,
         session_repo: SurveySessionRepository,
         question_repo: QuestionRepository,
+        scale_repo: ScaleRepository,
         scale_score_repo: ScaleScoreRepository,
         methodology_repo: MethodologyRepository,
         redis_client: aioredis.Redis,
@@ -50,6 +50,7 @@ class SurveySessionService:
         self.survey_repo = survey_repo
         self.session_repo = session_repo
         self.question_repo = question_repo
+        self.scale_repo = scale_repo
         self.scale_score_repo = scale_score_repo
         self.methodology_repo = methodology_repo
         self.redis = redis_client
@@ -225,11 +226,7 @@ class SurveySessionService:
         if methodology is None:
             return
         scale_ids = [s.scale_id for s in scores]
-        scale_rows = (
-            await self.session_repo.session.execute(
-                select(Scale).where(Scale.id.in_(scale_ids))
-            )
-        ).scalars().all()
+        scale_rows = await self.scale_repo.get_by_ids(scale_ids)
         scale_name_by_id = {s.id: s.name for s in scale_rows}
         items = [
             {

@@ -227,6 +227,14 @@ class ScaleRepository(BaseRepository[Scale]):
         )
         return list(result.scalars())
 
+    async def get_by_ids(self, ids: list[int]) -> list[Scale]:
+        if not ids:
+            return []
+        result = await self.session.execute(
+            select(Scale).where(Scale.id.in_(ids))
+        )
+        return list(result.scalars().all())
+
     async def bulk_create(self, scales: list[Scale]) -> list[Scale]:
         self.session.add_all(scales)
         await self.session.flush()
