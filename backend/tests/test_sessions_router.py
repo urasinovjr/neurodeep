@@ -262,6 +262,7 @@ async def test_state_returns_progress_percent_and_next_question(
     assert body["next_question_index"] == 0
     assert body["progress_percent"] == 0
     assert body["next_question"]["id"] == questions[0].id
+    assert body["invite_token"] == survey.invite_token
 
 
 async def test_answer_returns_202_without_text_field(

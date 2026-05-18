@@ -4,12 +4,15 @@ import {
   submitAnswer,
 } from '../api/respondentApi'
 import type { ChatQuestion, SessionState } from '../api/respondent.mapper'
+import {
+  clearLegacySessionKey,
+  writeSessionRestore,
+} from '../storage'
 
 type ApiError = { status?: number; detail?: string }
 
 export const MIN_ANSWER_LENGTH = 10
 const POLL_INTERVAL_MS = 700
-const SESSION_STORAGE_KEY = 'psychograph_session_id'
 
 export type LoadFailure = {
   title: string
@@ -100,6 +103,10 @@ export function useChatFlow(): ChatFlowState {
       setNextQuestionIndex(state.nextQuestionIndex)
       setTotalQuestions(state.totalQuestions)
       setProgressPercent(state.progressPercent)
+      writeSessionRestore(state.inviteToken, {
+        sessionId: state.sessionId,
+        lastKnownIndex: state.nextQuestionIndex,
+      })
       return 'in_progress'
     },
     [],
@@ -111,6 +118,7 @@ export function useChatFlow(): ChatFlowState {
 
   useEffect(() => {
     let active = true
+    clearLegacySessionKey()
     async function load() {
       if (!sessionId) {
         if (active) {
@@ -135,9 +143,6 @@ export function useChatFlow(): ChatFlowState {
           setIsLoadingState(false)
           return
         }
-        try {
-          window.localStorage.setItem(SESSION_STORAGE_KEY, sessionId)
-        } catch {}
         setIsLoadingState(false)
       } catch (err: unknown) {
         if (!active) return

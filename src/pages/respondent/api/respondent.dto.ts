@@ -35,6 +35,7 @@ export type ConsentDto = {
 export type SessionStateInfoDto = {
   session_id: string
   status: string
+  invite_token: string
   next_question_index: number
   total_questions: number
   progress_percent: number

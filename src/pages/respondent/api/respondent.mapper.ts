@@ -46,6 +46,7 @@ export type ChatQuestion = {
 export type SessionState = {
   sessionId: string
   status: string
+  inviteToken: string
   nextQuestionIndex: number
   totalQuestions: number
   progressPercent: number
@@ -65,6 +66,7 @@ export function mapSessionState(dto: SessionStateInfoDto): SessionState {
   return {
     sessionId: dto.session_id,
     status: dto.status,
+    inviteToken: dto.invite_token,
     nextQuestionIndex: dto.next_question_index,
     totalQuestions: dto.total_questions,
     progressPercent: dto.progress_percent,

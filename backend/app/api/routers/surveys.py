@@ -206,7 +206,7 @@ async def session_state(
     session_id: uuid.UUID,
     service: SurveySessionServiceDep,
 ) -> SessionStateInfoResponse:
-    session, questions = await service.get_state(session_id)
+    session, survey, questions = await service.get_state(session_id)
     total = len(questions)
     next_question: QuestionPublicResponse | None = None
     if session.status == "in_progress" and session.next_question_index < total:
@@ -216,6 +216,7 @@ async def session_state(
     return SessionStateInfoResponse(
         session_id=session.id,
         status=session.status,
+        invite_token=survey.invite_token,
         next_question_index=session.next_question_index,
         total_questions=total,
         progress_percent=_progress_percent(session.next_question_index, total),

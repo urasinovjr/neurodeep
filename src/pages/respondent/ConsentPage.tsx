@@ -75,43 +75,69 @@ export default function ConsentPage() {
         </section>
 
         <section className="consent-card">
-          <h2 className="consent-title">{CONSENT_TITLE}</h2>
-          <p className="consent-intro">{CONSENT_INTRO}</p>
-          <ol className="consent-points">
-            {CONSENT_POINTS.map((point) => (
-              <li key={point.title}>
-                <span className="consent-point-title">{point.title}.</span>{' '}
-                <span className="consent-point-body">{point.body}</span>
-              </li>
-            ))}
-          </ol>
+          {flow.restartAvailable ? (
+            <>
+              <h2 className="consent-title">Сессия завершена</h2>
+              <p className="consent-intro">
+                Предыдущая попытка прохождения была прервана. Чтобы пройти опрос
+                заново, начните с нового согласия.
+              </p>
+              <Button
+                type="button"
+                variant="primary"
+                size="large"
+                onClick={flow.restart}
+              >
+                Начать заново
+              </Button>
+            </>
+          ) : (
+            <>
+              <h2 className="consent-title">{CONSENT_TITLE}</h2>
+              <p className="consent-intro">{CONSENT_INTRO}</p>
+              {flow.restoredSessionId ? (
+                <p className="consent-resume-hint">
+                  Сессия уже начата ранее — после согласия вы продолжите с того же
+                  места.
+                </p>
+              ) : null}
+              <ol className="consent-points">
+                {CONSENT_POINTS.map((point) => (
+                  <li key={point.title}>
+                    <span className="consent-point-title">{point.title}.</span>{' '}
+                    <span className="consent-point-body">{point.body}</span>
+                  </li>
+                ))}
+              </ol>
 
-          <div className="consent-checkbox-row">
-            <input
-              id={checkboxId}
-              type="checkbox"
-              checked={flow.isAccepted}
-              onChange={(event) => flow.setAccepted(event.target.checked)}
-            />
-            <label htmlFor={checkboxId} className="consent-checkbox-label">
-              {CONSENT_CHECKBOX_LABEL}
-            </label>
-          </div>
+              <div className="consent-checkbox-row">
+                <input
+                  id={checkboxId}
+                  type="checkbox"
+                  checked={flow.isAccepted}
+                  onChange={(event) => flow.setAccepted(event.target.checked)}
+                />
+                <label htmlFor={checkboxId} className="consent-checkbox-label">
+                  {CONSENT_CHECKBOX_LABEL}
+                </label>
+              </div>
 
-          {flow.submitError ? (
-            <p className="consent-error">{flow.submitError}</p>
-          ) : null}
+              {flow.submitError ? (
+                <p className="consent-error">{flow.submitError}</p>
+              ) : null}
 
-          <Button
-            type="button"
-            variant="primary"
-            size="large"
-            onClick={() => void flow.submit()}
-            disabled={!flow.isAccepted || flow.isSubmitting}
-            isLoading={flow.isSubmitting}
-          >
-            Продолжить
-          </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="large"
+                onClick={() => void flow.submit()}
+                disabled={!flow.isAccepted || flow.isSubmitting}
+                isLoading={flow.isSubmitting}
+              >
+                Продолжить
+              </Button>
+            </>
+          )}
         </section>
       </div>
     </main>

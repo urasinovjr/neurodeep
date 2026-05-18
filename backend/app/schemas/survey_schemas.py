@@ -124,6 +124,7 @@ class ConsentResponse(BaseModel):
 class SessionStateInfoResponse(BaseModel):
     session_id: uuid.UUID
     status: str
+    invite_token: str
     next_question_index: int
     total_questions: int
     progress_percent: int

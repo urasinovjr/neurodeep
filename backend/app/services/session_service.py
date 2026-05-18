@@ -138,7 +138,7 @@ class SurveySessionService:
 
     async def get_state(
         self, session_id: uuid.UUID
-    ) -> tuple[SurveySession, list[Question]]:
+    ) -> tuple[SurveySession, Survey, list[Question]]:
         session = await self.session_repo.get_by_id(session_id)
         if session is None:
             raise NotFoundError("Сессия не найдена")
@@ -146,7 +146,7 @@ class SurveySessionService:
         if survey is None:
             raise NotFoundError("Опрос не найден")
         questions = await self.question_repo.get_by_methodology(survey.methodology_id)
-        return session, questions
+        return session, survey, questions
 
     async def submit_answer(
         self,
