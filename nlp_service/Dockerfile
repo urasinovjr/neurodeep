@@ -22,4 +22,8 @@ RUN python -c "from transformers import AutoTokenizer, AutoModelForSequenceClass
 
 COPY . .
 
+RUN useradd --create-home --shell /bin/bash --uid 1000 app \
+    && chown -R app:app /opt/hf-cache
+USER app
+
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
