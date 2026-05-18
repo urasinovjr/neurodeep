@@ -174,7 +174,7 @@ async def get_survey_analytics(
         user_id=user.id,
         entity_type="survey",
         entity_id=survey_id,
-        ip_address=request.client.host if request.client else None,
+        ip_address=_client_ip(request),
     )
     logger.info(
         "survey.analytics_viewed survey_id=%s user_id=%s sufficient=%s",
@@ -195,8 +195,7 @@ async def survey_preview(
     invite_token: str,
     service: SurveySessionServiceDep,
 ) -> SurveyPreviewResponse:
-    survey, questions = await service.preview_by_token(invite_token)
-    methodology = await service.methodology_repo.get_by_id(survey.methodology_id)
+    survey, questions, methodology = await service.preview_by_token(invite_token)
     return SurveyPreviewResponse(
         status=survey.status,
         welcome_message=survey.welcome_message,
@@ -221,8 +220,7 @@ async def start_session(
     invite_token: str,
     service: SurveySessionServiceDep,
 ) -> SessionStartResponse:
-    session, survey, questions = await service.start_by_token(invite_token)
-    methodology = await service.methodology_repo.get_by_id(survey.methodology_id)
+    session, survey, questions, methodology = await service.start_by_token(invite_token)
     return SessionStartResponse(
         session_id=session.id,
         status=session.status,
@@ -241,6 +239,7 @@ async def start_session(
     "/sessions/{session_id}/consent",
     response_model=ConsentResponse,
 )
+@limiter.limit("100/minute", key_func=_session_rate_key)
 async def give_consent(
     request: Request,
     session_id: uuid.UUID,
@@ -259,6 +258,7 @@ async def give_consent(
     "/sessions/{session_id}/state",
     response_model=SessionStateInfoResponse,
 )
+@limiter.limit("100/minute", key_func=_session_rate_key)
 async def session_state(
     request: Request,
     session_id: uuid.UUID,
@@ -311,6 +311,7 @@ async def submit_answer(
     "/sessions/{session_id}/result",
     response_model=SessionResultResponse,
 )
+@limiter.limit("100/minute", key_func=_session_rate_key)
 async def session_result(
     request: Request,
     session_id: uuid.UUID,
@@ -361,10 +362,14 @@ async def session_result(
     )
 
 
-def _ensure_profile_ready(session_id: uuid.UUID, profile_json: object) -> dict:
+def _ensure_profile_ready(profile_json: object) -> dict:
     if not isinstance(profile_json, dict) or not profile_json.get("scale_scores"):
         raise UnprocessableError("Профиль ещё не сгенерирован")
     return profile_json
+
+
+def _client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
 
 
 @router.get("/sessions/{session_id}/pdf")
@@ -374,10 +379,18 @@ async def session_pdf(
     session_id: uuid.UUID,
     service: SurveySessionServiceDep,
     pdf_service: PdfServiceDep,
+    audit: AuditServiceDep,
 ) -> Response:
     session, _ = await service.get_result(session_id)
-    profile = _ensure_profile_ready(session_id, session.profile_json)
+    profile = _ensure_profile_ready(session.profile_json)
     pdf_bytes = pdf_service.generate_pdf(profile)
+    await audit.log(
+        action="session.pdf_downloaded",
+        user_id=None,
+        entity_type="survey_session",
+        entity_id=None,
+        ip_address=_client_ip(request),
+    )
     logger.info(
         "session.pdf_downloaded session_id=%s bytes=%s", session_id, len(pdf_bytes)
     )
@@ -399,10 +412,18 @@ async def session_pinaba(
     request: Request,
     session_id: uuid.UUID,
     service: SurveySessionServiceDep,
+    audit: AuditServiceDep,
 ) -> Response:
     session, _ = await service.get_result(session_id)
-    profile = _ensure_profile_ready(session_id, session.profile_json)
+    profile = _ensure_profile_ready(session.profile_json)
     png_bytes = generate_pinaba(profile, str(session_id))
+    await audit.log(
+        action="session.pinaba_downloaded",
+        user_id=None,
+        entity_type="survey_session",
+        entity_id=None,
+        ip_address=_client_ip(request),
+    )
     logger.info(
         "session.pinaba_downloaded session_id=%s bytes=%s", session_id, len(png_bytes)
     )

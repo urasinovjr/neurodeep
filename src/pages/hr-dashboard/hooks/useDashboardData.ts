@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchSurveys } from '../api/hrDashboardApi'
-import { fetchMethodologies } from '../../../shared/api/methodologiesApi'
+import { useMethodologies } from '../../../shared/hooks/useMethodologies'
 import type { MethodologyBrief } from '../../../shared/types/methodology'
 import type { SurveyList } from '../api/hrDashboard.mapper'
 import type { DashboardFilters } from './useDashboardFilters'
@@ -27,33 +27,9 @@ function describeError(err: ApiError): string {
 
 export function useDashboardData(filters: DashboardFilters): UseDashboardData {
   const [surveys, setSurveys] = useState<SurveyList | null>(null)
-  const [methodologies, setMethodologies] = useState<MethodologyBrief[]>([])
+  const methodologiesState = useMethodologies()
   const [isLoadingSurveys, setIsLoadingSurveys] = useState<boolean>(true)
-  const [isLoadingMethodologies, setIsLoadingMethodologies] =
-    useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let active = true
-    async function loadMethodologies(): Promise<void> {
-      if (!active) return
-      setIsLoadingMethodologies(true)
-      try {
-        const list = await fetchMethodologies()
-        if (!active) return
-        setMethodologies(list)
-      } catch {
-        if (!active) return
-        setMethodologies([])
-      } finally {
-        if (active) setIsLoadingMethodologies(false)
-      }
-    }
-    void loadMethodologies()
-    return () => {
-      active = false
-    }
-  }, [])
 
   useEffect(() => {
     let active = true
@@ -93,9 +69,9 @@ export function useDashboardData(filters: DashboardFilters): UseDashboardData {
 
   return {
     surveys,
-    methodologies,
+    methodologies: methodologiesState.methodologies,
     isLoadingSurveys,
-    isLoadingMethodologies,
+    isLoadingMethodologies: methodologiesState.isLoading,
     error,
     pageSize: PAGE_SIZE,
   }

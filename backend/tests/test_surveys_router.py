@@ -340,7 +340,7 @@ async def test_analytics_other_researcher_returns_403(
     try:
         response = await api_client.get(f"/api/surveys/{survey.id}/analytics")
     finally:
-        pass
+        app.dependency_overrides.pop(get_current_user, None)
     assert response.status_code == 403
 
 

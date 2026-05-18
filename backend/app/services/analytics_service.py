@@ -45,8 +45,8 @@ class AnalyticsService:
         if researcher_id is not None and survey.researcher_id != researcher_id:
             raise ForbiddenError("Опрос принадлежит другому исследователю")
 
-        total_invited = await self._count_invited(survey_id)
-        total_completed = await self._count_completed(survey_id)
+        total_invited = await self.invitation_repo.count_for_survey(survey_id)
+        total_completed = await self.session_repo.count_completed(survey_id)
         completion_rate = (
             total_completed / total_invited if total_invited > 0 else 0.0
         )
@@ -105,9 +105,3 @@ class AnalyticsService:
         base["scale_distribution"] = scale_distribution
         base["department_comparison"] = department_comparison
         return base
-
-    async def _count_invited(self, survey_id: int) -> int:
-        return await self.invitation_repo.count_for_survey(survey_id)
-
-    async def _count_completed(self, survey_id: int) -> int:
-        return await self.session_repo.count_completed(survey_id)

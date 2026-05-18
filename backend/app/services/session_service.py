@@ -11,6 +11,7 @@ from app.core.exceptions import (
     UnprocessableError,
 )
 from app.db.models import (
+    Methodology,
     Question,
     ScaleScore,
     Survey,
@@ -76,23 +77,32 @@ class SurveySessionService:
             raise GoneError("Срок прохождения опроса истёк")
         return survey
 
+    async def _resolve_methodology(self, methodology_id: int) -> Methodology:
+        methodology = await self.methodology_repo.get_by_id(methodology_id)
+        if methodology is None:
+            raise NotFoundError("Методика не найдена")
+        return methodology
+
     async def preview_by_token(
         self, invite_token: str
-    ) -> tuple[Survey, list[Question]]:
+    ) -> tuple[Survey, list[Question], Methodology]:
         survey = await self._resolve_active_survey(invite_token)
         questions = await self.question_repo.get_by_methodology(survey.methodology_id)
         if not questions:
             raise UnprocessableError("В методике опроса нет вопросов")
-        return survey, questions
+        methodology = await self._resolve_methodology(survey.methodology_id)
+        return survey, questions, methodology
 
     async def start_by_token(
         self, invite_token: str
-    ) -> tuple[SurveySession, Survey, list[Question]]:
+    ) -> tuple[SurveySession, Survey, list[Question], Methodology]:
         survey = await self._resolve_active_survey(invite_token)
 
         questions = await self.question_repo.get_by_methodology(survey.methodology_id)
         if not questions:
             raise UnprocessableError("В методике опроса нет вопросов")
+
+        methodology = await self._resolve_methodology(survey.methodology_id)
 
         session = await self.session_repo.create(
             survey_id=survey.id,
@@ -102,7 +112,7 @@ class SurveySessionService:
         logger.info(
             "session.created id=%s survey_id=%s", session.id, survey.id
         )
-        return session, survey, questions
+        return session, survey, questions, methodology
 
     async def give_consent(
         self, session_id: uuid.UUID
