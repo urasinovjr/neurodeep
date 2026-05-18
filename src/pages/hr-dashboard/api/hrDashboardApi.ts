@@ -1,14 +1,6 @@
 import { apiClient } from '../../../shared/api/client'
-import type {
-  MethodologyBriefDto,
-  SurveyListDto,
-} from './hrDashboard.dto'
-import {
-  mapMethodologyBrief,
-  mapSurveyList,
-  type MethodologyBrief,
-  type SurveyList,
-} from './hrDashboard.mapper'
+import type { SurveyListDto } from './hrDashboard.dto'
+import { mapSurveyList, type SurveyList } from './hrDashboard.mapper'
 
 export type SurveyListParams = {
   status?: string
@@ -37,9 +29,4 @@ export async function fetchSurveys(
 ): Promise<SurveyList> {
   const dto = await apiClient.get<SurveyListDto>(`/surveys?${buildQuery(params)}`)
   return mapSurveyList(dto)
-}
-
-export async function fetchMethodologies(): Promise<MethodologyBrief[]> {
-  const list = await apiClient.get<MethodologyBriefDto[]>(`/methodologies`)
-  return list.map(mapMethodologyBrief)
 }

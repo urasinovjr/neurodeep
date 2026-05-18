@@ -1,24 +1,10 @@
 import type { NewSurveyDraft } from '../storage'
-import type { MethodologyBrief } from '../../hr-dashboard/api/hrDashboard.mapper'
+import type { MethodologyBrief } from '../../../shared/types/methodology'
+import { formatDate } from '../../../shared/utils'
 
 type Props = {
   draft: NewSurveyDraft
   methodologies: MethodologyBrief[]
-}
-
-function formatDate(value: string): string {
-  if (!value) return '—'
-  try {
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(value))
-  } catch {
-    return '—'
-  }
 }
 
 export default function StepReview({ draft, methodologies }: Props) {
@@ -45,11 +31,11 @@ export default function StepReview({ draft, methodologies }: Props) {
         </div>
         <div>
           <dt>Старт</dt>
-          <dd>{formatDate(draft.startDate)}</dd>
+          <dd>{formatDate(draft.startDate, { withTime: true })}</dd>
         </div>
         <div>
           <dt>Окончание</dt>
-          <dd>{formatDate(draft.endDate)}</dd>
+          <dd>{formatDate(draft.endDate, { withTime: true })}</dd>
         </div>
         <div className="review-wide">
           <dt>Приветствие</dt>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { fetchMethodologies } from '../../hr-dashboard/api/hrDashboardApi'
-import type { MethodologyBrief } from '../../hr-dashboard/api/hrDashboard.mapper'
+import { fetchMethodologies } from '../api/methodologiesApi'
+import type { MethodologyBrief } from '../types/methodology'
 
 export type UseMethodologies = {
   methodologies: MethodologyBrief[]

@@ -1,5 +1,5 @@
 import { Spinner } from '../../../shared/ui'
-import type { MethodologyBrief } from '../../hr-dashboard/api/hrDashboard.mapper'
+import type { MethodologyBrief } from '../../../shared/types/methodology'
 
 type Props = {
   methodologies: MethodologyBrief[]

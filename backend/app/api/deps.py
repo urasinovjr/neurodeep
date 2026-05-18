@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator, Callable
+from functools import lru_cache
 from typing import Annotated
 
 import redis.asyncio as aioredis
@@ -27,6 +28,7 @@ from app.services.analytics_service import AnalyticsService
 from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
 from app.services.methodology_service import MethodologyService
+from app.services.pdf_service import PdfService
 from app.services.profile_service import ProfileService
 from app.services.session_service import SurveySessionService
 from app.services.survey_service import SurveyService
@@ -170,3 +172,22 @@ async def get_analytics_service(session: SessionDep) -> AnalyticsService:
 
 
 AnalyticsServiceDep = Annotated[AnalyticsService, Depends(get_analytics_service)]
+
+
+async def get_audit_service(session: SessionDep) -> AuditService:
+    return AuditService(AuditLogRepository(session))
+
+
+AuditServiceDep = Annotated[AuditService, Depends(get_audit_service)]
+
+
+@lru_cache(maxsize=1)
+def _pdf_service_singleton() -> PdfService:
+    return PdfService()
+
+
+def get_pdf_service() -> PdfService:
+    return _pdf_service_singleton()
+
+
+PdfServiceDep = Annotated[PdfService, Depends(get_pdf_service)]

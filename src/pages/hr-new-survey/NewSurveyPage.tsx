@@ -8,7 +8,7 @@ import StepReview from './components/StepReview'
 import StepWelcome from './components/StepWelcome'
 import { createSurvey } from './api/newSurveyApi'
 import type { SurveyCreateRequestDto } from './api/newSurvey.dto'
-import { useMethodologies } from './hooks/useMethodologies'
+import { useMethodologies } from '../../shared/hooks/useMethodologies'
 import {
   TOTAL_STEPS,
   useNewSurveyForm,

@@ -6,3 +6,4 @@ export {
   setCsrfToken,
   type ApiError,
 } from './client'
+export { fetchMethodologies } from './methodologiesApi'

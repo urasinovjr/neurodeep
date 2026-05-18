@@ -1,7 +1,9 @@
 import {
-  SURVEY_STATUS_LABEL,
-  type MethodologyBrief,
-} from '../../hr-dashboard/api/hrDashboard.mapper'
+  getSurveyStatusClass,
+  getSurveyStatusLabel,
+} from '../../../shared/constants'
+import { formatDate } from '../../../shared/utils'
+import type { MethodologyBrief } from '../../../shared/types/methodology'
 import type { SurveyDetail } from '../api/surveyDetail.mapper'
 
 type Props = {
@@ -9,32 +11,9 @@ type Props = {
   methodology: MethodologyBrief | undefined
 }
 
-const STATUS_CLASS: Record<string, string> = {
-  draft: 'survey-status-draft',
-  active: 'survey-status-active',
-  archived: 'survey-status-archived',
-  completed: 'survey-status-completed',
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '—'
-  try {
-    const date = new Date(iso)
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(date)
-  } catch {
-    return '—'
-  }
-}
-
 export default function SurveyMeta({ detail, methodology }: Props) {
-  const statusClass = STATUS_CLASS[detail.status] ?? 'survey-status-default'
-  const statusLabel = SURVEY_STATUS_LABEL[detail.status] ?? detail.status
+  const statusClass = getSurveyStatusClass(detail.status)
+  const statusLabel = getSurveyStatusLabel(detail.status)
   return (
     <section className="detail-meta">
       <div className="detail-meta-head">
@@ -53,15 +32,15 @@ export default function SurveyMeta({ detail, methodology }: Props) {
       <dl className="detail-grid">
         <div>
           <dt>Создано</dt>
-          <dd>{formatDate(detail.createdAt)}</dd>
+          <dd>{formatDate(detail.createdAt, { withTime: true })}</dd>
         </div>
         <div>
           <dt>Старт</dt>
-          <dd>{formatDate(detail.startDate)}</dd>
+          <dd>{formatDate(detail.startDate, { withTime: true })}</dd>
         </div>
         <div>
           <dt>Окончание</dt>
-          <dd>{formatDate(detail.endDate)}</dd>
+          <dd>{formatDate(detail.endDate, { withTime: true })}</dd>
         </div>
         <div>
           <dt>Приглашено / Завершили</dt>

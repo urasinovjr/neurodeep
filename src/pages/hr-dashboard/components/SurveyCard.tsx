@@ -1,32 +1,13 @@
+import type { SurveyListItem } from '../api/hrDashboard.mapper'
 import {
-  SURVEY_STATUS_LABEL,
-  type SurveyListItem,
-} from '../api/hrDashboard.mapper'
+  getSurveyStatusClass,
+  getSurveyStatusLabel,
+} from '../../../shared/constants'
+import { formatDate } from '../../../shared/utils'
 
 type Props = {
   survey: SurveyListItem
   methodologyName: string | null
-}
-
-const STATUS_CLASS: Record<string, string> = {
-  draft: 'survey-status-draft',
-  active: 'survey-status-active',
-  archived: 'survey-status-archived',
-  completed: 'survey-status-completed',
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '—'
-  try {
-    const date = new Date(iso)
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }).format(date)
-  } catch {
-    return '—'
-  }
 }
 
 function formatPercent(rate: number): string {
@@ -34,8 +15,8 @@ function formatPercent(rate: number): string {
 }
 
 export default function SurveyCard({ survey, methodologyName }: Props) {
-  const statusClass = STATUS_CLASS[survey.status] ?? 'survey-status-default'
-  const statusLabel = SURVEY_STATUS_LABEL[survey.status] ?? survey.status
+  const statusClass = getSurveyStatusClass(survey.status)
+  const statusLabel = getSurveyStatusLabel(survey.status)
   const completedRatio =
     survey.invitedCount > 0
       ? `${survey.completedCount} / ${survey.invitedCount}`

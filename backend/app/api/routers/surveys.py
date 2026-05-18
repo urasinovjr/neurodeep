@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 
 from app.api.deps import (
     AnalyticsServiceDep,
-    SessionDep,
+    AuditServiceDep,
+    PdfServiceDep,
     SurveyServiceDep,
     SurveySessionServiceDep,
     require_role,
@@ -14,7 +15,6 @@ from app.api.deps import (
 from app.core.exceptions import UnprocessableError
 from app.core.limiter import limiter
 from app.db.models import User, UserRole
-from app.db.repositories import AuditLogRepository
 from app.schemas.survey_schemas import (
     AnalyticsResponse,
     AnswerAcceptedResponse,
@@ -36,8 +36,6 @@ from app.schemas.survey_schemas import (
     SurveyUpdateRequest,
     WheelBalance,
 )
-from app.services.audit_service import AuditService
-from app.services.pdf_service import PdfService
 from app.services.pinaba_service import generate_pinaba
 
 logger = logging.getLogger("surveys_router")
@@ -166,12 +164,11 @@ async def get_survey_analytics(
     request: Request,
     survey_id: int,
     service: AnalyticsServiceDep,
-    db: SessionDep,
+    audit: AuditServiceDep,
     user: ResearcherDep,
 ) -> AnalyticsResponse:
     researcher_id: int | None = None if user.role == UserRole.ADMIN else user.id
     result = await service.get_survey_analytics(survey_id, researcher_id)
-    audit = AuditService(AuditLogRepository(db))
     await audit.log(
         action="survey.analytics_viewed",
         user_id=user.id,
@@ -364,9 +361,6 @@ async def session_result(
     )
 
 
-_pdf_service = PdfService()
-
-
 def _ensure_profile_ready(session_id: uuid.UUID, profile_json: object) -> dict:
     if not isinstance(profile_json, dict) or not profile_json.get("scale_scores"):
         raise UnprocessableError("Профиль ещё не сгенерирован")
@@ -379,10 +373,11 @@ async def session_pdf(
     request: Request,
     session_id: uuid.UUID,
     service: SurveySessionServiceDep,
+    pdf_service: PdfServiceDep,
 ) -> Response:
     session, _ = await service.get_result(session_id)
     profile = _ensure_profile_ready(session_id, session.profile_json)
-    pdf_bytes = _pdf_service.generate_pdf(profile)
+    pdf_bytes = pdf_service.generate_pdf(profile)
     logger.info(
         "session.pdf_downloaded session_id=%s bytes=%s", session_id, len(pdf_bytes)
     )

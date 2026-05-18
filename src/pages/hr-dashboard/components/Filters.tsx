@@ -1,4 +1,4 @@
-import type { MethodologyBrief } from '../api/hrDashboard.mapper'
+import type { MethodologyBrief } from '../../../shared/types/methodology'
 import type { DashboardFilters } from '../hooks/useDashboardFilters'
 
 type Props = {

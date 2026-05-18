@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { fetchMethodologies, fetchSurveys } from '../api/hrDashboardApi'
-import type {
-  MethodologyBrief,
-  SurveyList,
-} from '../api/hrDashboard.mapper'
+import { fetchSurveys } from '../api/hrDashboardApi'
+import { fetchMethodologies } from '../../../shared/api/methodologiesApi'
+import type { MethodologyBrief } from '../../../shared/types/methodology'
+import type { SurveyList } from '../api/hrDashboard.mapper'
 import type { DashboardFilters } from './useDashboardFilters'
 
 const PAGE_SIZE = 12

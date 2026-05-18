@@ -20,10 +20,3 @@ export type SurveyListDto = {
   limit: number
   offset: number
 }
-
-export type MethodologyBriefDto = {
-  id: number
-  name: string
-  category: string | null
-  scale_count: number
-}

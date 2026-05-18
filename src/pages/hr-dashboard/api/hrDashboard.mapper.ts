@@ -1,17 +1,7 @@
 import type {
-  MethodologyBriefDto,
   SurveyListDto,
   SurveyListItemDto,
 } from './hrDashboard.dto'
-
-export type SurveyStatus = 'draft' | 'active' | 'archived' | 'completed'
-
-export const SURVEY_STATUS_LABEL: Record<string, string> = {
-  draft: 'Черновик',
-  active: 'Активно',
-  archived: 'В архиве',
-  completed: 'Завершено',
-}
 
 export type SurveyListItem = {
   id: number
@@ -33,13 +23,6 @@ export type SurveyList = {
   total: number
   limit: number
   offset: number
-}
-
-export type MethodologyBrief = {
-  id: number
-  name: string
-  category: string | null
-  scaleCount: number
 }
 
 export function mapSurveyListItem(dto: SurveyListItemDto): SurveyListItem {
@@ -67,14 +50,5 @@ export function mapSurveyList(dto: SurveyListDto): SurveyList {
     total: dto.total,
     limit: dto.limit,
     offset: dto.offset,
-  }
-}
-
-export function mapMethodologyBrief(dto: MethodologyBriefDto): MethodologyBrief {
-  return {
-    id: dto.id,
-    name: dto.name,
-    category: dto.category,
-    scaleCount: dto.scale_count,
   }
 }
