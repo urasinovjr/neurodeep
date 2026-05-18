@@ -137,9 +137,7 @@ export function useChatFlow(): ChatFlowState {
         }
         try {
           window.localStorage.setItem(SESSION_STORAGE_KEY, sessionId)
-        } catch {
-          // ignore: localStorage может быть недоступен
-        }
+        } catch {}
         setIsLoadingState(false)
       } catch (err: unknown) {
         if (!active) return
@@ -196,9 +194,7 @@ export function useChatFlow(): ChatFlowState {
             applyState(state)
             setIsProcessing(false)
           }
-        } catch {
-          // network blip — продолжаем polling до следующей попытки
-        }
+        } catch {}
       }, POLL_INTERVAL_MS)
       return true
     },
