@@ -1,0 +1,7 @@
+## Ваш профиль по методике «{{ methodology_name }}»
+
+{% for fragment in fragments %}{{ fragment }}
+{% endfor %}
+{% if recommendations %}**Общие рекомендации**
+{% for rec in recommendations %}- {{ rec }}
+{% endfor %}{% endif %}

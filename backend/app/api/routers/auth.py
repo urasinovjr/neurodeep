@@ -64,8 +64,16 @@ async def login(
         samesite="strict",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
     )
+    response.set_cookie(
+        key="csrf_token",
+        value=csrf,
+        httponly=False,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite="strict",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+    )
     response.headers["X-CSRF-Token"] = csrf
-    return TokenResponse(access_token=access)
+    return TokenResponse(access_token=access, csrf_token=csrf)
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -89,8 +97,16 @@ async def refresh(
         samesite="strict",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
     )
+    response.set_cookie(
+        key="csrf_token",
+        value=csrf,
+        httponly=False,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite="strict",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+    )
     response.headers["X-CSRF-Token"] = csrf
-    return TokenResponse(access_token=access)
+    return TokenResponse(access_token=access, csrf_token=csrf)
 
 
 @router.post("/logout", status_code=204)

@@ -1,14 +1,25 @@
 import HomePage from './pages/home'
 import RegisterPage from './pages/register'
 import LoginPage from './pages/login'
-import SurveyPage from './pages/survey'
-import ChatPage from './pages/chat'
+import VerifyEmailPage from './pages/verify-email'
+import ForgotPasswordPage from './pages/forgot-password'
+import ResetPasswordPage from './pages/reset-password'
+import PendingApprovalPage from './pages/pending-approval'
+import { ChatPage, ConsentPage } from './pages/respondent'
 import HrDashboardPage from './pages/hr-dashboard'
 import AdminMethodologiesPage from './pages/admin-methodologies'
 import NotFoundPage from './pages/not-found'
 import { useAuth } from './shared/auth'
 
-const PUBLIC_PATHS: readonly string[] = ['/', '/register', '/login', '/404']
+const PUBLIC_PATHS: readonly string[] = [
+  '/',
+  '/register',
+  '/login',
+  '/verify-email',
+  '/forgot-password',
+  '/reset-password',
+  '/404',
+]
 const PUBLIC_PREFIXES: readonly string[] = ['/s/', '/chat/']
 
 function isPublicPath(path: string): boolean {
@@ -33,10 +44,19 @@ export default function App() {
     return null
   }
 
+  if (user && user.role === 'pending' && path !== '/pending-approval' && path !== '/login') {
+    window.location.replace('/pending-approval')
+    return null
+  }
+
   if (path === '/') return <HomePage />
   if (path === '/register') return <RegisterPage />
   if (path === '/login') return <LoginPage />
-  if (path.startsWith('/s/')) return <SurveyPage />
+  if (path === '/verify-email') return <VerifyEmailPage />
+  if (path === '/forgot-password') return <ForgotPasswordPage />
+  if (path === '/reset-password') return <ResetPasswordPage />
+  if (path === '/pending-approval') return <PendingApprovalPage />
+  if (path.startsWith('/s/')) return <ConsentPage />
   if (path.startsWith('/chat/')) return <ChatPage />
   if (path === '/hr/dashboard') return <HrDashboardPage />
   if (path === '/admin/methodologies') return <AdminMethodologiesPage />

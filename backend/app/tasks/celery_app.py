@@ -23,3 +23,7 @@ celery_app.conf.update(
 @celery_app.task(name="ping")
 def ping() -> str:
     return "pong"
+
+
+from app.tasks import process_answer as _process_answer_module  # noqa: E402, F401
+from app.tasks import survey_tasks as _survey_tasks_module  # noqa: E402, F401

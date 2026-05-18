@@ -1,6 +1,7 @@
 const API_BASE: string = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 let accessToken: string | null = null
+let csrfToken: string | null = null
 let refreshPromise: Promise<boolean> | null = null
 
 export function setAccessToken(token: string | null): void {
@@ -9,6 +10,14 @@ export function setAccessToken(token: string | null): void {
 
 export function getAccessToken(): string | null {
   return accessToken
+}
+
+export function setCsrfToken(token: string | null): void {
+  csrfToken = token
+}
+
+export function getCsrfToken(): string | null {
+  return csrfToken
 }
 
 export type ApiError = {
@@ -24,8 +33,16 @@ type RequestOptions = {
 }
 
 function readCsrfToken(): string | null {
+  if (csrfToken) return csrfToken
   const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/)
   return match ? decodeURIComponent(match[1]) : null
+}
+
+function captureCsrfFromHeaders(headers: Headers): void {
+  const value = headers.get('X-CSRF-Token') ?? headers.get('x-csrf-token')
+  if (value && value.length > 0) {
+    csrfToken = value
+  }
 }
 
 async function refreshAccessToken(): Promise<boolean> {
@@ -42,8 +59,10 @@ async function refreshAccessToken(): Promise<boolean> {
       })
       if (!response.ok) {
         accessToken = null
+        csrfToken = null
         return false
       }
+      captureCsrfFromHeaders(response.headers)
       const data = (await response.json()) as { access_token?: string }
       if (typeof data.access_token === 'string' && data.access_token.length > 0) {
         accessToken = data.access_token
@@ -114,6 +133,7 @@ async function request<T>(
     throw error
   }
 
+  captureCsrfFromHeaders(response.headers)
   if (response.status === 204) return undefined as T
   return (await response.json()) as T
 }

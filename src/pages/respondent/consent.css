@@ -1,0 +1,150 @@
+.consent-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 16px;
+  background-color: var(--color-bg);
+}
+
+.consent-shell {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.consent-header {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  box-shadow: var(--shadow-sm);
+}
+
+.consent-methodology-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 8px 0;
+}
+
+.consent-methodology-meta {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin: 0 0 16px 0;
+}
+
+.consent-welcome {
+  font-size: 16px;
+  color: var(--color-text);
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.consent-card {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.consent-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.consent-intro {
+  font-size: 15px;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.consent-points {
+  list-style: decimal;
+  padding-left: 20px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.consent-point-title {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.consent-point-body {
+  color: var(--color-text);
+}
+
+.consent-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background-color: var(--color-bg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.consent-checkbox-row input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.consent-checkbox-label {
+  flex: 1;
+  font-size: 15px;
+  color: var(--color-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.consent-error {
+  background-color: #fef2f2;
+  color: var(--color-danger);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid #fecaca;
+  font-size: 14px;
+}
+
+.consent-loading,
+.consent-failure {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-xl);
+  padding: 48px 32px;
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+  color: var(--color-text);
+}
+
+.consent-failure-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+}
+
+.consent-failure-detail {
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .consent-page {
+    padding: 24px 12px;
+  }
+  .consent-header,
+  .consent-card {
+    padding: 20px;
+  }
+}

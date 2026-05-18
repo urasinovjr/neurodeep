@@ -1,19 +1,27 @@
+import uuid
 from datetime import datetime
 from decimal import Decimal
 
+from sqlalchemy import case, func, or_, select
 from sqlalchemy import delete as sql_delete
-from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import array
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import selectinload
 
 from app.db.models import (
     AuditLog,
+    Invitation,
     Methodology,
+    PinabaArtifact,
     Question,
     QuestionScale,
     Scale,
+    ScaleScore,
     Session,
+    Survey,
+    SurveySession,
     User,
+    UserProfile,
     UserRole,
     UserStatus,
 )
@@ -272,3 +280,192 @@ class QuestionScaleRepository(BaseRepository[QuestionScale]):
         self.session.add_all(new_links)
         await self.session.flush()
         return new_links
+
+
+class SurveyRepository(BaseRepository[Survey]):
+    model = Survey
+
+    async def get_by_invite_token(self, token: str) -> Survey | None:
+        result = await self.session.execute(
+            select(Survey).where(Survey.invite_token == token)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_researcher(
+        self,
+        researcher_id: int,
+        status: str | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[list[Survey], int]:
+        filters = [Survey.researcher_id == researcher_id]
+        if status is not None:
+            filters.append(Survey.status == status)
+        base = select(Survey).where(*filters)
+        count_query = select(func.count()).select_from(Survey).where(*filters)
+        result = await self.session.execute(
+            base.order_by(Survey.id.desc()).limit(limit).offset(offset)
+        )
+        total = await self.session.scalar(count_query)
+        return list(result.scalars().all()), int(total or 0)
+
+    async def get_active(self) -> list[Survey]:
+        result = await self.session.execute(
+            select(Survey).where(Survey.status == "active").order_by(Survey.id)
+        )
+        return list(result.scalars().all())
+
+
+class InvitationRepository(BaseRepository[Invitation]):
+    model = Invitation
+
+    async def get_by_token(self, token: uuid.UUID) -> Invitation | None:
+        result = await self.session.execute(
+            select(Invitation).where(Invitation.token == token)
+        )
+        return result.scalar_one_or_none()
+
+    async def count_completed(self, survey_id: int) -> int:
+        total = await self.session.scalar(
+            select(func.count())
+            .select_from(Invitation)
+            .where(Invitation.survey_id == survey_id, Invitation.used_at.is_not(None))
+        )
+        return int(total or 0)
+
+
+class SurveySessionRepository(BaseRepository[SurveySession]):
+    model = SurveySession
+
+    async def get_by_id(self, obj_id: uuid.UUID) -> SurveySession | None:  # type: ignore[override]
+        return await self.session.get(SurveySession, obj_id)
+
+    async def get_by_invite_and_anon(
+        self, invitation_id: int, respondent_anon_id: uuid.UUID
+    ) -> SurveySession | None:
+        result = await self.session.execute(
+            select(SurveySession).where(
+                SurveySession.invitation_id == invitation_id,
+                SurveySession.respondent_anon_id == respondent_anon_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_completed_for_survey(self, survey_id: int) -> list[SurveySession]:
+        result = await self.session.execute(
+            select(SurveySession)
+            .where(
+                SurveySession.survey_id == survey_id,
+                SurveySession.status == "completed",
+            )
+            .order_by(SurveySession.completed_at.desc())
+        )
+        return list(result.scalars().all())
+
+
+class ScaleScoreRepository(BaseRepository[ScaleScore]):
+    model = ScaleScore
+
+    async def get_by_session(self, session_id: uuid.UUID) -> list[ScaleScore]:
+        result = await self.session.execute(
+            select(ScaleScore)
+            .where(ScaleScore.session_id == session_id)
+            .order_by(ScaleScore.scale_id)
+        )
+        return list(result.scalars().all())
+
+    async def bulk_create(self, scores: list[ScaleScore]) -> list[ScaleScore]:
+        self.session.add_all(scores)
+        await self.session.flush()
+        return scores
+
+    async def aggregate_avg_for_survey(self, survey_id: int) -> dict[int, Decimal]:
+        stmt = (
+            select(ScaleScore.scale_id, func.avg(ScaleScore.value).label("avg_value"))
+            .join(SurveySession, SurveySession.id == ScaleScore.session_id)
+            .where(
+                SurveySession.survey_id == survey_id,
+                SurveySession.status == "completed",
+            )
+            .group_by(ScaleScore.scale_id)
+        )
+        result = await self.session.execute(stmt)
+        return {scale_id: Decimal(str(avg_value)) for scale_id, avg_value in result.all()}
+
+    async def distribution_low_mid_high(
+        self, survey_id: int, scale_id: int
+    ) -> dict[str, int]:
+        bucket = case(
+            (ScaleScore.value < Decimal("34"), "low"),
+            (ScaleScore.value < Decimal("67"), "mid"),
+            else_="high",
+        ).label("bucket")
+        stmt = (
+            select(bucket, func.count())
+            .select_from(ScaleScore)
+            .join(SurveySession, SurveySession.id == ScaleScore.session_id)
+            .where(
+                SurveySession.survey_id == survey_id,
+                SurveySession.status == "completed",
+                ScaleScore.scale_id == scale_id,
+            )
+            .group_by(bucket)
+        )
+        result = await self.session.execute(stmt)
+        counts = {"low": 0, "mid": 0, "high": 0}
+        for tier, count in result.all():
+            counts[str(tier)] = int(count)
+        return counts
+
+
+class PinabaArtifactRepository(BaseRepository[PinabaArtifact]):
+    model = PinabaArtifact
+
+    async def get_by_uuid(self, public_uuid: uuid.UUID) -> PinabaArtifact | None:
+        result = await self.session.execute(
+            select(PinabaArtifact).where(PinabaArtifact.public_uuid == public_uuid)
+        )
+        return result.scalar_one_or_none()
+
+    async def expire_old(self, now: datetime) -> int:
+        result = await self.session.execute(
+            sql_delete(PinabaArtifact).where(PinabaArtifact.expires_at < now)
+        )
+        await self.session.flush()
+        return int(result.rowcount or 0)
+
+
+class UserProfileRepository(BaseRepository[UserProfile]):
+    model = UserProfile
+
+    async def get_by_user(self, user_id: int) -> UserProfile | None:
+        result = await self.session.execute(
+            select(UserProfile).where(UserProfile.user_id == user_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def upsert(
+        self, user_id: int, encrypted_data: bytes, key_version: int = 1
+    ) -> UserProfile:
+        stmt = pg_insert(UserProfile).values(
+            user_id=user_id,
+            encrypted_data=encrypted_data,
+            key_version=key_version,
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[UserProfile.user_id],
+            set_={
+                "encrypted_data": stmt.excluded.encrypted_data,
+                "key_version": stmt.excluded.key_version,
+                "updated_at": func.now(),
+            },
+        )
+        await self.session.execute(stmt)
+        await self.session.flush()
+        result = await self.session.execute(
+            select(UserProfile)
+            .where(UserProfile.user_id == user_id)
+            .execution_options(populate_existing=True)
+        )
+        existing = result.scalar_one()
+        return existing

@@ -1,1 +1,8 @@
-export { apiClient, getAccessToken, setAccessToken, type ApiError } from './client'
+export {
+  apiClient,
+  getAccessToken,
+  setAccessToken,
+  getCsrfToken,
+  setCsrfToken,
+  type ApiError,
+} from './client'

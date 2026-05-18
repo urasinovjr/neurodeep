@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
@@ -10,9 +11,11 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    LargeBinary,
     Numeric,
     String,
     Text,
+    Uuid,
     func,
 )
 from sqlalchemy import Enum as SQLAlchemyEnum
@@ -20,6 +23,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 ThemeTagsType = JSONB().with_variant(JSON(), "sqlite")
+ProfileJsonType = JSONB().with_variant(JSON(), "sqlite")
 
 
 class Base(DeclarativeBase):
@@ -47,12 +51,20 @@ class User(Base):
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     role: Mapped[UserRole] = mapped_column(
-        SQLAlchemyEnum(UserRole, name="user_role"),
+        SQLAlchemyEnum(
+            UserRole,
+            name="user_role",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
         default=UserRole.PENDING,
         nullable=False,
     )
     status: Mapped[UserStatus] = mapped_column(
-        SQLAlchemyEnum(UserStatus, name="user_status"),
+        SQLAlchemyEnum(
+            UserStatus,
+            name="user_status",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
         default=UserStatus.ACTIVE,
         nullable=False,
     )
@@ -217,4 +229,193 @@ class AdaptiveQuestionBank(Base):
     order_universal: Mapped[int | None] = mapped_column(Integer)
     is_universal: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="false"
+    )
+
+
+class Survey(Base):
+    __tablename__ = "surveys"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    researcher_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    methodology_id: Mapped[int] = mapped_column(
+        ForeignKey("methodologies.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    welcome_message: Mapped[str | None] = mapped_column(Text)
+    start_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    end_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    allow_individual_share: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="draft"
+    )
+    invite_token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    invitations: Mapped[list["Invitation"]] = relationship(
+        back_populates="survey", cascade="all, delete-orphan"
+    )
+    sessions: Mapped[list["SurveySession"]] = relationship(
+        back_populates="survey", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft', 'active', 'completed', 'archived')",
+            name="surveys_status_check",
+        ),
+    )
+
+
+class Invitation(Base):
+    __tablename__ = "invitations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    survey_id: Mapped[int] = mapped_column(
+        ForeignKey("surveys.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), unique=True, nullable=False, default=uuid.uuid4
+    )
+    email: Mapped[str | None] = mapped_column(String(255))
+    department: Mapped[str | None] = mapped_column(String(100))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reminded_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    survey: Mapped["Survey"] = relationship(back_populates="invitations")
+    sessions: Mapped[list["SurveySession"]] = relationship(back_populates="invitation")
+
+
+class SurveySession(Base):
+    __tablename__ = "survey_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), primary_key=True, default=uuid.uuid4
+    )
+    survey_id: Mapped[int] = mapped_column(
+        ForeignKey("surveys.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    invitation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("invitations.id", ondelete="SET NULL")
+    )
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    respondent_anon_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), nullable=False, default=uuid.uuid4
+    )
+    consent_given_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_question_index: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    status: Mapped[str] = mapped_column(
+        String(30), nullable=False, server_default="consent_pending"
+    )
+    profile_json: Mapped[Any | None] = mapped_column(ProfileJsonType)
+    pinaba_image_key: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    survey: Mapped["Survey"] = relationship(back_populates="sessions")
+    invitation: Mapped["Invitation | None"] = relationship(back_populates="sessions")
+    scale_scores: Mapped[list["ScaleScore"]] = relationship(
+        back_populates="session", cascade="all, delete-orphan"
+    )
+    pinaba_artifacts: Mapped[list["PinabaArtifact"]] = relationship(
+        back_populates="session", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('consent_pending', 'in_progress', 'completed', 'abandoned')",
+            name="survey_sessions_status_check",
+        ),
+    )
+
+
+class ScaleScore(Base):
+    __tablename__ = "scale_scores"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(),
+        ForeignKey("survey_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    scale_id: Mapped[int] = mapped_column(
+        ForeignKey("scales.id", ondelete="RESTRICT"), nullable=False
+    )
+    value: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    confidence: Mapped[Decimal] = mapped_column(Numeric(3, 2), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    session: Mapped["SurveySession"] = relationship(back_populates="scale_scores")
+    scale: Mapped["Scale"] = relationship()
+
+    __table_args__ = (
+        CheckConstraint(
+            "value >= 0 AND value <= 100",
+            name="scale_scores_value_range",
+        ),
+        CheckConstraint(
+            "confidence >= 0 AND confidence <= 1",
+            name="scale_scores_confidence_range",
+        ),
+    )
+
+
+class PinabaArtifact(Base):
+    __tablename__ = "pinaba_artifacts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(),
+        ForeignKey("survey_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    image_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    public_uuid: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), unique=True, nullable=False, default=uuid.uuid4
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    session: Mapped["SurveySession"] = relationship(back_populates="pinaba_artifacts")
+
+
+class UserProfile(Base):
+    __tablename__ = "user_profiles"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    encrypted_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    key_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="1"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
     )

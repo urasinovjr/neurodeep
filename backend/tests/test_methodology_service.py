@@ -5,7 +5,17 @@ from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, ForbiddenError, UnprocessableError
-from app.db.models import Methodology, Question, QuestionScale, Scale
+from app.db.models import (
+    Invitation,
+    Methodology,
+    PinabaArtifact,
+    Question,
+    QuestionScale,
+    Scale,
+    ScaleScore,
+    Survey,
+    SurveySession,
+)
 from app.db.repositories import (
     MethodologyRepository,
     QuestionRepository,
@@ -23,6 +33,11 @@ from app.services.methodology_service import MethodologyService
 
 
 async def _cleanup(session: AsyncSession) -> None:
+    await session.execute(sql_delete(ScaleScore))
+    await session.execute(sql_delete(PinabaArtifact))
+    await session.execute(sql_delete(SurveySession))
+    await session.execute(sql_delete(Invitation))
+    await session.execute(sql_delete(Survey))
     await session.execute(sql_delete(QuestionScale))
     await session.execute(sql_delete(Question))
     await session.execute(sql_delete(Scale))

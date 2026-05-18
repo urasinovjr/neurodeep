@@ -1,25 +1,33 @@
 from collections.abc import AsyncIterator, Callable
 from typing import Annotated
 
+import redis.asyncio as aioredis
 from fastapi import Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AuthenticationError, ForbiddenError
+from app.core.redis import get_redis
 from app.core.security import decode_token
 from app.db.models import User, UserRole, UserStatus
 from app.db.repositories import (
     AuditLogRepository,
+    InvitationRepository,
     MethodologyRepository,
     QuestionRepository,
     QuestionScaleRepository,
     ScaleRepository,
+    ScaleScoreRepository,
     SessionRepository,
+    SurveyRepository,
+    SurveySessionRepository,
     UserRepository,
 )
 from app.db.session import AsyncSessionLocal
 from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
 from app.services.methodology_service import MethodologyService
+from app.services.session_service import SurveySessionService
+from app.services.survey_service import SurveyService
 
 
 async def get_db() -> AsyncIterator[AsyncSession]:
@@ -97,3 +105,37 @@ async def get_methodology_service(session: SessionDep) -> MethodologyService:
 
 MethodologyServiceDep = Annotated[MethodologyService, Depends(get_methodology_service)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+
+
+async def get_survey_service(session: SessionDep) -> SurveyService:
+    return SurveyService(
+        survey_repo=SurveyRepository(session),
+        invitation_repo=InvitationRepository(session),
+        session_repo=SurveySessionRepository(session),
+        methodology_repo=MethodologyRepository(session),
+        audit_service=AuditService(AuditLogRepository(session)),
+    )
+
+
+SurveyServiceDep = Annotated[SurveyService, Depends(get_survey_service)]
+RedisDep = Annotated[aioredis.Redis, Depends(get_redis)]
+
+
+async def get_session_service(
+    session: SessionDep,
+    redis_client: RedisDep,
+) -> SurveySessionService:
+    return SurveySessionService(
+        survey_repo=SurveyRepository(session),
+        session_repo=SurveySessionRepository(session),
+        question_repo=QuestionRepository(session),
+        scale_score_repo=ScaleScoreRepository(session),
+        methodology_repo=MethodologyRepository(session),
+        redis_client=redis_client,
+        audit_service=AuditService(AuditLogRepository(session)),
+    )
+
+
+SurveySessionServiceDep = Annotated[
+    SurveySessionService, Depends(get_session_service)
+]

@@ -2,10 +2,25 @@ from httpx import AsyncClient
 from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Methodology, Question, QuestionScale, Scale
+from app.db.models import (
+    Invitation,
+    Methodology,
+    PinabaArtifact,
+    Question,
+    QuestionScale,
+    Scale,
+    ScaleScore,
+    Survey,
+    SurveySession,
+)
 
 
 async def _cleanup(session: AsyncSession) -> None:
+    await session.execute(sql_delete(ScaleScore))
+    await session.execute(sql_delete(PinabaArtifact))
+    await session.execute(sql_delete(SurveySession))
+    await session.execute(sql_delete(Invitation))
+    await session.execute(sql_delete(Survey))
     await session.execute(sql_delete(QuestionScale))
     await session.execute(sql_delete(Question))
     await session.execute(sql_delete(Scale))
