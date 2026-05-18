@@ -24,6 +24,7 @@ pnpm-debug.log*
 *.sw?
 
 .eslintcache
+.playwright-mcp/
 
 __pycache__/
 *.py[cod]
