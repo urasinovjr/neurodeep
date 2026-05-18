@@ -76,6 +76,22 @@ class ScaleScoreItem(BaseModel):
     confidence: Annotated[Decimal, Field(ge=Decimal("0"), le=Decimal("1"))]
 
 
+class ScaleScoreBreakdownItem(BaseModel):
+    scale_id: int
+    scale_name: str
+    value: float
+    level: str
+    fragment: str
+
+
+class WheelBalance(BaseModel):
+    emotions: float
+    thinking: float
+    body: float
+    relationships: float
+    meaning: float
+
+
 class SessionResultResponse(BaseModel):
     session_id: uuid.UUID
     status: str
@@ -83,6 +99,10 @@ class SessionResultResponse(BaseModel):
     scores: list[ScaleScoreItem]
     profile_text: str | None = None
     pinaba_url: str | None = None
+    scale_scores: list[ScaleScoreBreakdownItem] = []
+    text_interpretation: str | None = None
+    recommendations: list[str] = []
+    wheel_balance: WheelBalance | None = None
 
 
 class MethodologyMetaResponse(BaseModel):

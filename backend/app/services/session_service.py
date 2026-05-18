@@ -25,7 +25,7 @@ from app.db.repositories import (
     SurveySessionRepository,
 )
 from app.services.audit_service import AuditService
-from app.services.profile_service import ProfileRenderService
+from app.services.profile_service import ProfileService
 from app.tasks.process_answer import process_answer
 
 logger = logging.getLogger("session_service")
@@ -45,7 +45,7 @@ class SurveySessionService:
         methodology_repo: MethodologyRepository,
         redis_client: aioredis.Redis,
         audit_service: AuditService,
-        profile_service: ProfileRenderService | None = None,
+        profile_service: ProfileService | None = None,
     ) -> None:
         self.survey_repo = survey_repo
         self.session_repo = session_repo
@@ -55,7 +55,13 @@ class SurveySessionService:
         self.methodology_repo = methodology_repo
         self.redis = redis_client
         self.audit_service = audit_service
-        self.profile_service = profile_service or ProfileRenderService()
+        self.profile_service = profile_service or ProfileService(
+            session_repo=session_repo,
+            survey_repo=survey_repo,
+            methodology_repo=methodology_repo,
+            scale_repo=scale_repo,
+            scale_score_repo=scale_score_repo,
+        )
 
     async def _resolve_active_survey(self, invite_token: str) -> Survey:
         survey = await self.survey_repo.get_by_invite_token(invite_token)
@@ -209,38 +215,16 @@ class SurveySessionService:
 
         already_rendered = (
             isinstance(session.profile_json, dict)
-            and bool(session.profile_json.get("text"))
+            and bool(session.profile_json.get("text_interpretation"))
         )
         if scores and not already_rendered:
-            await self._materialize_profile(session, scores)
+            await self._materialize_profile(session)
 
         return session, scores
 
-    async def _materialize_profile(
-        self, session: SurveySession, scores: list[ScaleScore]
-    ) -> None:
-        survey = await self.survey_repo.get_by_id(session.survey_id)
-        if survey is None:
+    async def _materialize_profile(self, session: SurveySession) -> None:
+        profile_json = await self.profile_service.build_profile_json(session.id)
+        if profile_json is None:
             return
-        methodology = await self.methodology_repo.get_by_id(survey.methodology_id)
-        if methodology is None:
-            return
-        scale_ids = [s.scale_id for s in scores]
-        scale_rows = await self.scale_repo.get_by_ids(scale_ids)
-        scale_name_by_id = {s.id: s.name for s in scale_rows}
-        items = [
-            {
-                "scale_id": s.scale_id,
-                "scale_name": scale_name_by_id.get(s.scale_id, f"Шкала {s.scale_id}"),
-                "value": float(s.value),
-                "confidence": float(s.confidence),
-            }
-            for s in scores
-        ]
-        text = self.profile_service.render_master(
-            methodology_id=methodology.id,
-            methodology_name=methodology.name,
-            scales=items,
-        )
-        session.profile_json = {"text": text}
+        session.profile_json = profile_json
         await self.session_repo.session.flush()

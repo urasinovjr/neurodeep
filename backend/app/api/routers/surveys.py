@@ -16,6 +16,7 @@ from app.schemas.survey_schemas import (
     ConsentResponse,
     MethodologyMetaResponse,
     QuestionPublicResponse,
+    ScaleScoreBreakdownItem,
     ScaleScoreItem,
     SessionResultResponse,
     SessionStartResponse,
@@ -26,6 +27,7 @@ from app.schemas.survey_schemas import (
     SurveyPreviewResponse,
     SurveyResponse,
     SurveyUpdateRequest,
+    WheelBalance,
 )
 
 router = APIRouter(prefix="/api/surveys", tags=["surveys"])
@@ -262,11 +264,33 @@ async def session_result(
     pinaba_url: str | None = None
     if session.pinaba_image_key:
         pinaba_url = f"/p/{session.pinaba_image_key}"
+
     profile_text: str | None = None
+    text_interpretation: str | None = None
+    scale_scores: list[ScaleScoreBreakdownItem] = []
+    recommendations: list[str] = []
+    wheel_balance: WheelBalance | None = None
+
     if session.profile_json and isinstance(session.profile_json, dict):
-        text_value = session.profile_json.get("text")
+        text_value = session.profile_json.get("text_interpretation")
         if isinstance(text_value, str):
+            text_interpretation = text_value
             profile_text = text_value
+        legacy_text = session.profile_json.get("text")
+        if profile_text is None and isinstance(legacy_text, str):
+            profile_text = legacy_text
+        raw_scales = session.profile_json.get("scale_scores")
+        if isinstance(raw_scales, list):
+            scale_scores = [
+                ScaleScoreBreakdownItem.model_validate(item) for item in raw_scales
+            ]
+        raw_recs = session.profile_json.get("recommendations")
+        if isinstance(raw_recs, list):
+            recommendations = [str(r) for r in raw_recs]
+        raw_wheel = session.profile_json.get("wheel_balance")
+        if isinstance(raw_wheel, dict):
+            wheel_balance = WheelBalance.model_validate(raw_wheel)
+
     return SessionResultResponse(
         session_id=session.id,
         status=session.status,
@@ -274,4 +298,8 @@ async def session_result(
         scores=[ScaleScoreItem.model_validate(s) for s in scores],
         profile_text=profile_text,
         pinaba_url=pinaba_url,
+        scale_scores=scale_scores,
+        text_interpretation=text_interpretation,
+        recommendations=recommendations,
+        wheel_balance=wheel_balance,
     )

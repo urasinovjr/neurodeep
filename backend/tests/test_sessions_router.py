@@ -452,3 +452,17 @@ async def test_result_renders_profile_text_when_scores_present(
     assert body["profile_text"] is not None
     assert "78" in body["profile_text"]
     assert "Тестовая шкала" in body["profile_text"]
+    assert body["text_interpretation"] == body["profile_text"]
+    assert len(body["scale_scores"]) == 1
+    assert body["scale_scores"][0]["scale_name"] == "Тестовая шкала"
+    assert body["scale_scores"][0]["level"] == "high"
+    assert body["recommendations"]
+    wheel = body["wheel_balance"]
+    assert wheel is not None
+    assert set(wheel.keys()) == {
+        "emotions",
+        "thinking",
+        "body",
+        "relationships",
+        "meaning",
+    }

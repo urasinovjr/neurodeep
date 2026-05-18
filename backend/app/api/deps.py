@@ -26,6 +26,7 @@ from app.db.session import AsyncSessionLocal
 from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
 from app.services.methodology_service import MethodologyService
+from app.services.profile_service import ProfileService
 from app.services.session_service import SurveySessionService
 from app.services.survey_service import SurveyService
 
@@ -121,9 +122,23 @@ SurveyServiceDep = Annotated[SurveyService, Depends(get_survey_service)]
 RedisDep = Annotated[aioredis.Redis, Depends(get_redis)]
 
 
+async def get_profile_service(session: SessionDep) -> ProfileService:
+    return ProfileService(
+        session_repo=SurveySessionRepository(session),
+        survey_repo=SurveyRepository(session),
+        methodology_repo=MethodologyRepository(session),
+        scale_repo=ScaleRepository(session),
+        scale_score_repo=ScaleScoreRepository(session),
+    )
+
+
+ProfileServiceDep = Annotated[ProfileService, Depends(get_profile_service)]
+
+
 async def get_session_service(
     session: SessionDep,
     redis_client: RedisDep,
+    profile_service: ProfileServiceDep,
 ) -> SurveySessionService:
     return SurveySessionService(
         survey_repo=SurveyRepository(session),
@@ -134,6 +149,7 @@ async def get_session_service(
         methodology_repo=MethodologyRepository(session),
         redis_client=redis_client,
         audit_service=AuditService(AuditLogRepository(session)),
+        profile_service=profile_service,
     )
 
 
