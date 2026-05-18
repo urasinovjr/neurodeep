@@ -124,8 +124,8 @@ class AuthService:
 
         if not verify_password(password, user.password_hash):
             user.failed_login_attempts += 1
-            if user.failed_login_attempts >= 5:
-                user.locked_until = now + timedelta(minutes=15)
+            if user.failed_login_attempts >= settings.LOCKOUT_AFTER_FAILED_ATTEMPTS:
+                user.locked_until = now + timedelta(minutes=settings.LOCKOUT_DURATION_MINUTES)
 
             await self.user_repo.update(
                 user,
@@ -162,8 +162,6 @@ class AuthService:
     async def refresh(self, refresh_token: str, csrf_from_header: str) -> tuple[str, str, str]:
         claims = decode_token(refresh_token)
         user_id = int(claims["sub"])
-        session_id = int(claims["session_id"])
-        _ = session_id
 
         refresh_token_hash = _hash_refresh_token(refresh_token)
         session = await self.session_repo.get_by_refresh_token_hash(refresh_token_hash)

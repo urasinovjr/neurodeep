@@ -101,3 +101,12 @@ def test_locked_error_handler():
     response = client.get("/_test/locked")
     assert response.status_code == 423
     assert response.json() == {"detail": "Аккаунт временно заблокирован"}
+
+
+def test_request_validation_error_returns_russian_detail():
+    response = client.post("/api/auth/login", json={})
+    assert response.status_code == 422
+    body = response.json()
+    assert body["detail"] == "Некорректные данные запроса"
+    assert isinstance(body.get("errors"), list)
+    assert len(body["errors"]) >= 1
