@@ -1,16 +1,22 @@
+import logging
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 
 from app.api.deps import (
+    AnalyticsServiceDep,
+    SessionDep,
     SurveyServiceDep,
     SurveySessionServiceDep,
     require_role,
 )
+from app.core.exceptions import UnprocessableError
 from app.core.limiter import limiter
 from app.db.models import User, UserRole
+from app.db.repositories import AuditLogRepository
 from app.schemas.survey_schemas import (
+    AnalyticsResponse,
     AnswerAcceptedResponse,
     AnswerSubmitRequest,
     ConsentResponse,
@@ -23,12 +29,18 @@ from app.schemas.survey_schemas import (
     SessionStateInfoResponse,
     SurveyCreateRequest,
     SurveyDetailResponse,
+    SurveyListItem,
     SurveyListResponse,
     SurveyPreviewResponse,
     SurveyResponse,
     SurveyUpdateRequest,
     WheelBalance,
 )
+from app.services.audit_service import AuditService
+from app.services.pdf_service import PdfService
+from app.services.pinaba_service import generate_pinaba
+
+logger = logging.getLogger("surveys_router")
 
 router = APIRouter(prefix="/api/surveys", tags=["surveys"])
 
@@ -55,14 +67,33 @@ async def list_surveys(
     service: SurveyServiceDep,
     user: ResearcherDep,
     status: Annotated[str | None, Query()] = None,
+    methodology_id: Annotated[int | None, Query(ge=1)] = None,
+    sort: Annotated[str, Query(pattern="^(created_at|completion_rate)$")] = "created_at",
+    sort_dir: Annotated[str, Query(pattern="^(asc|desc)$")] = "desc",
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> SurveyListResponse:
     rows, total = await service.list_for_researcher(
-        researcher_id=user.id, status=status, limit=limit, offset=offset
+        researcher_id=user.id,
+        status=status,
+        methodology_id=methodology_id,
+        sort=sort,
+        sort_dir=sort_dir,
+        limit=limit,
+        offset=offset,
     )
+    items = [
+        SurveyListItem.model_validate(
+            {
+                **SurveyResponse.model_validate(survey).model_dump(),
+                "invited_count": invited,
+                "completed_count": completed,
+            }
+        )
+        for survey, invited, completed in rows
+    ]
     return SurveyListResponse(
-        items=[SurveyResponse.model_validate(row) for row in rows],
+        items=items,
         total=total,
         limit=limit,
         offset=offset,
@@ -127,6 +158,34 @@ async def archive_survey(
 ) -> SurveyResponse:
     survey = await service.archive(survey_id, user.id)
     return SurveyResponse.model_validate(survey)
+
+
+@router.get("/{survey_id}/analytics", response_model=AnalyticsResponse)
+@limiter.limit("30/minute")
+async def get_survey_analytics(
+    request: Request,
+    survey_id: int,
+    service: AnalyticsServiceDep,
+    db: SessionDep,
+    user: ResearcherDep,
+) -> AnalyticsResponse:
+    researcher_id: int | None = None if user.role == UserRole.ADMIN else user.id
+    result = await service.get_survey_analytics(survey_id, researcher_id)
+    audit = AuditService(AuditLogRepository(db))
+    await audit.log(
+        action="survey.analytics_viewed",
+        user_id=user.id,
+        entity_type="survey",
+        entity_id=survey_id,
+        ip_address=request.client.host if request.client else None,
+    )
+    logger.info(
+        "survey.analytics_viewed survey_id=%s user_id=%s sufficient=%s",
+        survey_id,
+        user.id,
+        result["is_sufficient"],
+    )
+    return AnalyticsResponse.model_validate(result)
 
 
 @router.get(
@@ -302,4 +361,63 @@ async def session_result(
         text_interpretation=text_interpretation,
         recommendations=recommendations,
         wheel_balance=wheel_balance,
+    )
+
+
+_pdf_service = PdfService()
+
+
+def _ensure_profile_ready(session_id: uuid.UUID, profile_json: object) -> dict:
+    if not isinstance(profile_json, dict) or not profile_json.get("scale_scores"):
+        raise UnprocessableError("Профиль ещё не сгенерирован")
+    return profile_json
+
+
+@router.get("/sessions/{session_id}/pdf")
+@limiter.limit("30/minute", key_func=_session_rate_key)
+async def session_pdf(
+    request: Request,
+    session_id: uuid.UUID,
+    service: SurveySessionServiceDep,
+) -> Response:
+    session, _ = await service.get_result(session_id)
+    profile = _ensure_profile_ready(session_id, session.profile_json)
+    pdf_bytes = _pdf_service.generate_pdf(profile)
+    logger.info(
+        "session.pdf_downloaded session_id=%s bytes=%s", session_id, len(pdf_bytes)
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="psychograph-{session_id}.pdf"'
+            ),
+            "Cache-Control": "private, no-store",
+        },
+    )
+
+
+@router.get("/sessions/{session_id}/pinaba")
+@limiter.limit("30/minute", key_func=_session_rate_key)
+async def session_pinaba(
+    request: Request,
+    session_id: uuid.UUID,
+    service: SurveySessionServiceDep,
+) -> Response:
+    session, _ = await service.get_result(session_id)
+    profile = _ensure_profile_ready(session_id, session.profile_json)
+    png_bytes = generate_pinaba(profile, str(session_id))
+    logger.info(
+        "session.pinaba_downloaded session_id=%s bytes=%s", session_id, len(png_bytes)
+    )
+    return Response(
+        content=png_bytes,
+        media_type="image/png",
+        headers={
+            "Content-Disposition": (
+                f'inline; filename="psychograph-{session_id}.png"'
+            ),
+            "Cache-Control": "private, max-age=300",
+        },
     )

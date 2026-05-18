@@ -80,12 +80,18 @@ class SurveyService:
         self,
         researcher_id: int,
         status: str | None = None,
+        methodology_id: int | None = None,
+        sort: str = "created_at",
+        sort_dir: str = "desc",
         limit: int = 20,
         offset: int = 0,
-    ) -> tuple[list[Survey], int]:
+    ) -> tuple[list[tuple[Survey, int, int]], int]:
         return await self.survey_repo.get_by_researcher(
             researcher_id=researcher_id,
             status=status,
+            methodology_id=methodology_id,
+            sort=sort,
+            sort_dir=sort_dir,
             limit=limit,
             offset=offset,
         )

@@ -39,8 +39,13 @@ class SurveyResponse(BaseModel):
     created_at: datetime
 
 
+class SurveyListItem(SurveyResponse):
+    invited_count: int
+    completed_count: int
+
+
 class SurveyListResponse(BaseModel):
-    items: list[SurveyResponse]
+    items: list[SurveyListItem]
     total: int
     limit: int
     offset: int
@@ -103,6 +108,28 @@ class SessionResultResponse(BaseModel):
     text_interpretation: str | None = None
     recommendations: list[str] = []
     wheel_balance: WheelBalance | None = None
+
+
+class ScaleAverageEntry(BaseModel):
+    scale_name: str
+    average: float | None
+
+
+class DepartmentSummary(BaseModel):
+    department: str
+    respondents_count: int
+    scale_averages: dict[int, float]
+
+
+class AnalyticsResponse(BaseModel):
+    total_invited: int
+    total_completed: int
+    completion_rate: float
+    is_sufficient: bool
+    insufficient_note: str | None = None
+    scale_averages: dict[int, ScaleAverageEntry] | None = None
+    scale_distribution: dict[int, dict[str, int]] | None = None
+    department_comparison: list[DepartmentSummary] | None = None
 
 
 class MethodologyMetaResponse(BaseModel):

@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import Float, case, func, or_, select
 from sqlalchemy import delete as sql_delete
 from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -303,19 +304,63 @@ class SurveyRepository(BaseRepository[Survey]):
         self,
         researcher_id: int,
         status: str | None = None,
+        methodology_id: int | None = None,
+        sort: str = "created_at",
+        sort_dir: str = "desc",
         limit: int = 20,
         offset: int = 0,
-    ) -> tuple[list[Survey], int]:
+    ) -> tuple[list[tuple[Survey, int, int]], int]:
         filters = [Survey.researcher_id == researcher_id]
         if status is not None:
             filters.append(Survey.status == status)
-        base = select(Survey).where(*filters)
-        count_query = select(func.count()).select_from(Survey).where(*filters)
-        result = await self.session.execute(
-            base.order_by(Survey.id.desc()).limit(limit).offset(offset)
+        if methodology_id is not None:
+            filters.append(Survey.methodology_id == methodology_id)
+
+        invited_sub = (
+            select(
+                Invitation.survey_id.label("survey_id"),
+                func.count().label("invited_cnt"),
+            )
+            .group_by(Invitation.survey_id)
+            .subquery()
         )
+        completed_sub = (
+            select(
+                SurveySession.survey_id.label("survey_id"),
+                func.count().label("completed_cnt"),
+            )
+            .where(SurveySession.status == "completed")
+            .group_by(SurveySession.survey_id)
+            .subquery()
+        )
+        invited_count = func.coalesce(invited_sub.c.invited_cnt, 0)
+        completed_count = func.coalesce(completed_sub.c.completed_cnt, 0)
+
+        primary_order: Any
+        if sort == "completion_rate":
+            rate_expr = completed_count.cast(Float) / func.nullif(invited_count, 0)
+            order = rate_expr.desc() if sort_dir == "desc" else rate_expr.asc()
+            primary_order = order.nulls_last()
+        else:
+            field = Survey.created_at
+            primary_order = field.desc() if sort_dir == "desc" else field.asc()
+
+        stmt = (
+            select(Survey, invited_count, completed_count)
+            .outerjoin(invited_sub, invited_sub.c.survey_id == Survey.id)
+            .outerjoin(completed_sub, completed_sub.c.survey_id == Survey.id)
+            .where(*filters)
+            .order_by(primary_order, Survey.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        count_query = select(func.count()).select_from(Survey).where(*filters)
+        result = await self.session.execute(stmt)
+        rows = [
+            (row[0], int(row[1] or 0), int(row[2] or 0)) for row in result.all()
+        ]
         total = await self.session.scalar(count_query)
-        return list(result.scalars().all()), int(total or 0)
+        return rows, int(total or 0)
 
     async def get_active(self) -> list[Survey]:
         result = await self.session.execute(
@@ -338,6 +383,14 @@ class InvitationRepository(BaseRepository[Invitation]):
             select(func.count())
             .select_from(Invitation)
             .where(Invitation.survey_id == survey_id, Invitation.used_at.is_not(None))
+        )
+        return int(total or 0)
+
+    async def count_for_survey(self, survey_id: int) -> int:
+        total = await self.session.scalar(
+            select(func.count())
+            .select_from(Invitation)
+            .where(Invitation.survey_id == survey_id)
         )
         return int(total or 0)
 
@@ -369,6 +422,17 @@ class SurveySessionRepository(BaseRepository[SurveySession]):
             .order_by(SurveySession.completed_at.desc())
         )
         return list(result.scalars().all())
+
+    async def count_completed(self, survey_id: int) -> int:
+        total = await self.session.scalar(
+            select(func.count())
+            .select_from(SurveySession)
+            .where(
+                SurveySession.survey_id == survey_id,
+                SurveySession.status == "completed",
+            )
+        )
+        return int(total or 0)
 
 
 class ScaleScoreRepository(BaseRepository[ScaleScore]):
@@ -424,6 +488,55 @@ class ScaleScoreRepository(BaseRepository[ScaleScore]):
         for tier, count in result.all():
             counts[str(tier)] = int(count)
         return counts
+
+    async def aggregate_by_department(
+        self, survey_id: int, min_sessions: int = 3
+    ) -> list[tuple[str, int, dict[int, Decimal]]]:
+        counts_stmt = (
+            select(
+                Invitation.department.label("dept"),
+                func.count(SurveySession.id.distinct()).label("session_count"),
+            )
+            .select_from(SurveySession)
+            .join(Invitation, Invitation.id == SurveySession.invitation_id)
+            .where(
+                SurveySession.survey_id == survey_id,
+                SurveySession.status == "completed",
+                Invitation.department.is_not(None),
+            )
+            .group_by(Invitation.department)
+            .having(func.count(SurveySession.id.distinct()) >= min_sessions)
+        )
+        counts_result = await self.session.execute(counts_stmt)
+        dept_counts: dict[str, int] = {
+            str(dept): int(count) for dept, count in counts_result.all()
+        }
+        if not dept_counts:
+            return []
+        averages_stmt = (
+            select(
+                Invitation.department.label("dept"),
+                ScaleScore.scale_id,
+                func.avg(ScaleScore.value).label("avg_value"),
+            )
+            .select_from(ScaleScore)
+            .join(SurveySession, SurveySession.id == ScaleScore.session_id)
+            .join(Invitation, Invitation.id == SurveySession.invitation_id)
+            .where(
+                SurveySession.survey_id == survey_id,
+                SurveySession.status == "completed",
+                Invitation.department.in_(list(dept_counts.keys())),
+            )
+            .group_by(Invitation.department, ScaleScore.scale_id)
+        )
+        averages_result = await self.session.execute(averages_stmt)
+        by_dept: dict[str, dict[int, Decimal]] = {d: {} for d in dept_counts}
+        for dept, scale_id, avg_value in averages_result.all():
+            by_dept[str(dept)][int(scale_id)] = Decimal(str(avg_value))
+        return [
+            (dept, dept_counts[dept], by_dept[dept])
+            for dept in sorted(dept_counts.keys())
+        ]
 
 
 class PinabaArtifactRepository(BaseRepository[PinabaArtifact]):

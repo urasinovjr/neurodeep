@@ -23,6 +23,7 @@ from app.db.repositories import (
     UserRepository,
 )
 from app.db.session import AsyncSessionLocal
+from app.services.analytics_service import AnalyticsService
 from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
 from app.services.methodology_service import MethodologyService
@@ -156,3 +157,16 @@ async def get_session_service(
 SurveySessionServiceDep = Annotated[
     SurveySessionService, Depends(get_session_service)
 ]
+
+
+async def get_analytics_service(session: SessionDep) -> AnalyticsService:
+    return AnalyticsService(
+        survey_repo=SurveyRepository(session),
+        invitation_repo=InvitationRepository(session),
+        session_repo=SurveySessionRepository(session),
+        scale_repo=ScaleRepository(session),
+        scale_score_repo=ScaleScoreRepository(session),
+    )
+
+
+AnalyticsServiceDep = Annotated[AnalyticsService, Depends(get_analytics_service)]
