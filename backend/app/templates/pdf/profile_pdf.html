@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+@page {
+    size: A4;
+    margin: 16mm 14mm;
+    @bottom-center {
+        content: "PsychoGraph · " counter(page) " / " counter(pages);
+        font-size: 8pt;
+        color: #64748B;
+    }
+}
+* { box-sizing: border-box; }
+body {
+    font-family: 'DejaVu Sans', 'Helvetica', sans-serif;
+    color: #0F172A;
+    font-size: 10.5pt;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
+}
+h1 {
+    color: #5260FF;
+    font-size: 22pt;
+    margin: 0 0 6mm 0;
+    letter-spacing: -0.4px;
+}
+h2 {
+    font-size: 13pt;
+    margin: 8mm 0 4mm 0;
+    color: #0F172A;
+    border-bottom: 1px solid #E2E8F0;
+    padding-bottom: 2mm;
+}
+.subtitle {
+    color: #64748B;
+    font-size: 10pt;
+    margin-bottom: 8mm;
+}
+.charts {
+    display: flex;
+    gap: 6mm;
+    align-items: flex-start;
+    margin-bottom: 6mm;
+}
+.chart-block {
+    flex: 1;
+    padding: 4mm;
+    border: 1px solid #E2E8F0;
+    border-radius: 4mm;
+    background: #FFFFFF;
+}
+.chart-block h3 {
+    margin: 0 0 3mm 0;
+    font-size: 10pt;
+    color: #475569;
+    font-weight: 600;
+}
+.scale-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.scale-row {
+    margin-bottom: 4mm;
+    page-break-inside: avoid;
+}
+.scale-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 1mm;
+}
+.scale-name {
+    font-size: 10.5pt;
+    font-weight: 600;
+    color: #0F172A;
+}
+.scale-meta {
+    font-size: 9pt;
+    color: #64748B;
+}
+.scale-meta .value {
+    color: #0F172A;
+    font-weight: 600;
+    margin-right: 2mm;
+}
+.text-block {
+    white-space: pre-wrap;
+    background: #F8FAFC;
+    border-radius: 4mm;
+    padding: 5mm;
+    margin: 0 0 6mm 0;
+    font-size: 10pt;
+    line-height: 1.6;
+    page-break-inside: auto;
+}
+.recommendations {
+    margin: 0;
+    padding-left: 5mm;
+}
+.recommendations li {
+    margin-bottom: 2.5mm;
+    line-height: 1.5;
+}
+.footer-note {
+    margin-top: 8mm;
+    font-size: 8.5pt;
+    color: #94A3B8;
+    line-height: 1.4;
+}
+.level-pill {
+    display: inline-block;
+    padding: 0.5mm 2mm;
+    border-radius: 6mm;
+    font-size: 8pt;
+    font-weight: 600;
+    color: white;
+}
+</style>
+</head>
+<body>
+
+<h1>{{ title }}</h1>
+<p class="subtitle">Числовые значения шкал по результатам диалога. Текст ответов не сохраняется.</p>
+
+<div class="charts">
+    {% if radar_svg %}
+    <div class="chart-block">
+        <h3>Радар шкал</h3>
+        {{ radar_svg | safe }}
+    </div>
+    {% endif %}
+    {% if wheel_svg %}
+    <div class="chart-block">
+        <h3>Колесо баланса</h3>
+        {{ wheel_svg | safe }}
+    </div>
+    {% endif %}
+</div>
+
+<h2>Шкалы</h2>
+<ul class="scale-list">
+    {% for scale in scales %}
+    <li class="scale-row">
+        <div class="scale-head">
+            <span class="scale-name">{{ scale.scale_name }}</span>
+            <span class="scale-meta">
+                <span class="value">{{ scale.value | fmt }} / 100</span>
+                <span class="level-pill" style="background: {{ scale.level | level_color }};">{{ scale.level | level_label }}</span>
+            </span>
+        </div>
+        {{ bar_svgs[loop.index0] | safe }}
+    </li>
+    {% endfor %}
+</ul>
+
+{% if text_interpretation %}
+<h2>Интерпретация</h2>
+<div class="text-block">{{ text_interpretation }}</div>
+{% endif %}
+
+{% if recommendations %}
+<h2>Рекомендации</h2>
+<ol class="recommendations">
+    {% for rec in recommendations %}
+    <li>{{ rec }}</li>
+    {% endfor %}
+</ol>
+{% endif %}
+
+<p class="footer-note">
+Отчёт сгенерирован автоматически и носит ориентировочный характер. Это не медицинский диагноз. Тексты ваших ответов не сохраняются: в системе остаются только числовые значения шкал.
+</p>
+
+</body>
+</html>

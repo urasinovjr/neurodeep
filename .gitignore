@@ -13,7 +13,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-.DS_Store
+**/.DS_Store
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -24,6 +24,10 @@ pnpm-debug.log*
 *.sw?
 
 .eslintcache
+.playwright-mcp/
+
+playwright-report/
+test-results/
 
 __pycache__/
 *.py[cod]

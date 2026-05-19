@@ -11,4 +11,6 @@ RUN npm config set fetch-retries 5 \
 
 COPY . .
 
+USER node
+
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

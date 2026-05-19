@@ -5,8 +5,10 @@ import VerifyEmailPage from './pages/verify-email'
 import ForgotPasswordPage from './pages/forgot-password'
 import ResetPasswordPage from './pages/reset-password'
 import PendingApprovalPage from './pages/pending-approval'
-import { ChatPage, ConsentPage } from './pages/respondent'
+import { ChatPage, ConsentPage, ResultPage } from './pages/respondent'
 import HrDashboardPage from './pages/hr-dashboard'
+import NewSurveyPage from './pages/hr-new-survey'
+import SurveyDetailPage from './pages/hr-survey-detail'
 import AdminMethodologiesPage from './pages/admin-methodologies'
 import NotFoundPage from './pages/not-found'
 import { useAuth } from './shared/auth'
@@ -57,8 +59,11 @@ export default function App() {
   if (path === '/reset-password') return <ResetPasswordPage />
   if (path === '/pending-approval') return <PendingApprovalPage />
   if (path.startsWith('/s/')) return <ConsentPage />
+  if (path.startsWith('/chat/') && path.endsWith('/result')) return <ResultPage />
   if (path.startsWith('/chat/')) return <ChatPage />
   if (path === '/hr/dashboard') return <HrDashboardPage />
+  if (path === '/hr/surveys/new') return <NewSurveyPage />
+  if (/^\/hr\/surveys\/\d+$/.test(path)) return <SurveyDetailPage />
   if (path === '/admin/methodologies') return <AdminMethodologiesPage />
   return <NotFoundPage />
 }

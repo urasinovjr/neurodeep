@@ -269,3 +269,110 @@ async def test_archive_survey_sets_status(
     response = await api_client.post(f"/api/surveys/{survey.id}/archive")
     assert response.status_code == 200
     assert response.json()["status"] == "archived"
+
+
+async def test_analytics_admin_returns_200_insufficient(
+    db_session: AsyncSession, api_client: AsyncClient
+) -> None:
+    await _cleanup(db_session)
+    methodology = await _make_published_methodology(db_session)
+
+    researcher = User(
+        email="r1@example.com", password_hash="x", first_name="R", last_name="One",
+        role=UserRole.RESEARCHER, status=UserStatus.ACTIVE,
+    )
+    db_session.add(researcher)
+    await db_session.commit()
+
+    survey = Survey(
+        researcher_id=researcher.id, methodology_id=methodology.id,
+        name="S", invite_token=secrets.token_urlsafe(24), status="active",
+    )
+    db_session.add(survey)
+    await db_session.commit()
+
+    response = await api_client.get(f"/api/surveys/{survey.id}/analytics")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["total_invited"] == 0
+    assert body["total_completed"] == 0
+    assert body["completion_rate"] == 0
+    assert body["is_sufficient"] is False
+    assert body["insufficient_note"]
+    assert body["scale_averages"] is None
+    assert body["scale_distribution"] is None
+    assert body["department_comparison"] is None
+
+
+async def test_analytics_other_researcher_returns_403(
+    db_session: AsyncSession, api_client: AsyncClient
+) -> None:
+    from app.api.deps import get_current_user
+    from app.main import app
+
+    await _cleanup(db_session)
+    methodology = await _make_published_methodology(db_session)
+
+    me = User(
+        id=2, email="me@example.com", password_hash="x", first_name="M", last_name="E",
+        role=UserRole.RESEARCHER, status=UserStatus.ACTIVE,
+        email_verified=True, failed_login_attempts=0,
+    )
+    other = User(
+        id=3, email="other@example.com", password_hash="x", first_name="O", last_name="T",
+        role=UserRole.RESEARCHER, status=UserStatus.ACTIVE,
+        email_verified=True, failed_login_attempts=0,
+    )
+    db_session.add_all([me, other])
+    await db_session.commit()
+
+    survey = Survey(
+        researcher_id=other.id, methodology_id=methodology.id,
+        name="Theirs", invite_token=secrets.token_urlsafe(24), status="active",
+    )
+    db_session.add(survey)
+    await db_session.commit()
+
+    async def override_me() -> User:
+        return me
+
+    app.dependency_overrides[get_current_user] = override_me
+    try:
+        response = await api_client.get(f"/api/surveys/{survey.id}/analytics")
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+    assert response.status_code == 403
+
+
+async def test_analytics_unknown_survey_returns_404(
+    db_session: AsyncSession, api_client: AsyncClient
+) -> None:
+    await _cleanup(db_session)
+    response = await api_client.get("/api/surveys/999999/analytics")
+    assert response.status_code == 404
+
+
+async def test_analytics_writes_audit_log(
+    db_session: AsyncSession, api_client: AsyncClient
+) -> None:
+    from sqlalchemy import select
+
+    await _cleanup(db_session)
+    methodology = await _make_published_methodology(db_session)
+    survey = Survey(
+        researcher_id=1, methodology_id=methodology.id,
+        name="A", invite_token=secrets.token_urlsafe(24), status="active",
+    )
+    db_session.add(survey)
+    await db_session.commit()
+
+    response = await api_client.get(f"/api/surveys/{survey.id}/analytics")
+    assert response.status_code == 200
+
+    db_session.expunge_all()
+    rows = (
+        await db_session.execute(
+            select(AuditLog).where(AuditLog.action == "survey.analytics_viewed")
+        )
+    ).scalars().all()
+    assert any(r.entity_id == survey.id and r.user_id == 1 for r in rows)

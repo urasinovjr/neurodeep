@@ -102,6 +102,26 @@ async def test_scale_get_by_methodology_orders_by_index(db_session: AsyncSession
     assert [s.name for s in rows] == ["A", "B", "C"]
 
 
+async def test_scale_get_by_ids_returns_only_requested(db_session: AsyncSession) -> None:
+    await _cleanup(db_session)
+    m_repo = MethodologyRepository(db_session)
+    s_repo = ScaleRepository(db_session)
+    m = await m_repo.create(name="M", category="cbt")
+    created = await s_repo.bulk_create([
+        Scale(methodology_id=m.id, name="A", order_index=0),
+        Scale(methodology_id=m.id, name="B", order_index=1),
+        Scale(methodology_id=m.id, name="C", order_index=2),
+    ])
+    ids_subset = [created[0].id, created[2].id]
+
+    rows = await s_repo.get_by_ids(ids_subset)
+    rows_empty = await s_repo.get_by_ids([])
+
+    assert {s.name for s in rows} == {"A", "C"}
+    assert len(rows) == 2
+    assert rows_empty == []
+
+
 async def test_question_get_by_theme_tags_filters(db_session: AsyncSession) -> None:
     await _cleanup(db_session)
     m_repo = MethodologyRepository(db_session)

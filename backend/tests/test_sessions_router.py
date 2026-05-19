@@ -262,6 +262,7 @@ async def test_state_returns_progress_percent_and_next_question(
     assert body["next_question_index"] == 0
     assert body["progress_percent"] == 0
     assert body["next_question"]["id"] == questions[0].id
+    assert body["invite_token"] == survey.invite_token
 
 
 async def test_answer_returns_202_without_text_field(
@@ -451,3 +452,105 @@ async def test_result_renders_profile_text_when_scores_present(
     assert body["profile_text"] is not None
     assert "78" in body["profile_text"]
     assert "Тестовая шкала" in body["profile_text"]
+    assert body["text_interpretation"] == body["profile_text"]
+    assert len(body["scale_scores"]) == 1
+    assert body["scale_scores"][0]["scale_name"] == "Тестовая шкала"
+    assert body["scale_scores"][0]["level"] == "high"
+    assert body["recommendations"]
+    wheel = body["wheel_balance"]
+    assert wheel is not None
+    assert set(wheel.keys()) == {
+        "emotions",
+        "thinking",
+        "body",
+        "relationships",
+        "meaning",
+    }
+
+
+async def test_session_pinaba_returns_png(
+    db_session: AsyncSession,
+    session_api_client: AsyncClient,
+) -> None:
+    await _cleanup(db_session)
+    survey, questions = await _make_active_survey(db_session, n_questions=1)
+
+    scale = Scale(
+        methodology_id=survey.methodology_id,
+        name="Тревожность",
+        order_index=0,
+        min_value=0,
+        max_value=100,
+    )
+    db_session.add(scale)
+    await db_session.commit()
+
+    start = await session_api_client.post(
+        f"/api/surveys/by-token/{survey.invite_token}/sessions"
+    )
+    session_id_str = start.json()["session_id"]
+    await session_api_client.post(f"/api/surveys/sessions/{session_id_str}/consent")
+    await session_api_client.post(
+        f"/api/surveys/sessions/{session_id_str}/answer",
+        json={"question_id": questions[0].id, "text": "ответ респондента"},
+    )
+
+    import uuid as _uuid
+    from decimal import Decimal
+
+    db_session.add(
+        ScaleScore(
+            session_id=_uuid.UUID(session_id_str),
+            scale_id=scale.id,
+            value=Decimal("78.00"),
+            confidence=Decimal("0.50"),
+        )
+    )
+    await db_session.commit()
+
+    await session_api_client.get(f"/api/surveys/sessions/{session_id_str}/result")
+
+    response = await session_api_client.get(
+        f"/api/surveys/sessions/{session_id_str}/pinaba"
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "image/png"
+    body = response.content
+    assert body.startswith(b"\x89PNG\r\n\x1a\n")
+    assert "Content-Disposition" in response.headers
+
+
+async def test_session_pinaba_before_profile_returns_422(
+    db_session: AsyncSession,
+    session_api_client: AsyncClient,
+) -> None:
+    await _cleanup(db_session)
+    survey, questions = await _make_active_survey(db_session, n_questions=1)
+
+    start = await session_api_client.post(
+        f"/api/surveys/by-token/{survey.invite_token}/sessions"
+    )
+    session_id_str = start.json()["session_id"]
+    await session_api_client.post(f"/api/surveys/sessions/{session_id_str}/consent")
+    await session_api_client.post(
+        f"/api/surveys/sessions/{session_id_str}/answer",
+        json={"question_id": questions[0].id, "text": "ответ респондента"},
+    )
+
+    response = await session_api_client.get(
+        f"/api/surveys/sessions/{session_id_str}/pinaba"
+    )
+    assert response.status_code == 422
+
+
+async def test_session_pdf_unknown_session_returns_404(
+    db_session: AsyncSession,
+    session_api_client: AsyncClient,
+) -> None:
+    await _cleanup(db_session)
+    import uuid as _uuid
+
+    response = await session_api_client.get(
+        f"/api/surveys/sessions/{_uuid.uuid4()}/pdf"
+    )
+    assert response.status_code == 404

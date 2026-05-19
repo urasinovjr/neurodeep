@@ -65,6 +65,16 @@
   margin: 0;
 }
 
+.consent-resume-hint {
+  margin: 0;
+  padding: 10px 12px;
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 .consent-points {
   list-style: decimal;
   padding-left: 20px;

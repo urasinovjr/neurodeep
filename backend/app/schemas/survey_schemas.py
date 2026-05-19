@@ -39,8 +39,13 @@ class SurveyResponse(BaseModel):
     created_at: datetime
 
 
+class SurveyListItem(SurveyResponse):
+    invited_count: int
+    completed_count: int
+
+
 class SurveyListResponse(BaseModel):
-    items: list[SurveyResponse]
+    items: list[SurveyListItem]
     total: int
     limit: int
     offset: int
@@ -76,6 +81,22 @@ class ScaleScoreItem(BaseModel):
     confidence: Annotated[Decimal, Field(ge=Decimal("0"), le=Decimal("1"))]
 
 
+class ScaleScoreBreakdownItem(BaseModel):
+    scale_id: int
+    scale_name: str
+    value: float
+    level: str
+    fragment: str
+
+
+class WheelBalance(BaseModel):
+    emotions: float
+    thinking: float
+    body: float
+    relationships: float
+    meaning: float
+
+
 class SessionResultResponse(BaseModel):
     session_id: uuid.UUID
     status: str
@@ -83,6 +104,32 @@ class SessionResultResponse(BaseModel):
     scores: list[ScaleScoreItem]
     profile_text: str | None = None
     pinaba_url: str | None = None
+    scale_scores: list[ScaleScoreBreakdownItem] = []
+    text_interpretation: str | None = None
+    recommendations: list[str] = []
+    wheel_balance: WheelBalance | None = None
+
+
+class ScaleAverageEntry(BaseModel):
+    scale_name: str
+    average: float | None
+
+
+class DepartmentSummary(BaseModel):
+    department: str
+    respondents_count: int
+    scale_averages: dict[int, float]
+
+
+class AnalyticsResponse(BaseModel):
+    total_invited: int
+    total_completed: int
+    completion_rate: float
+    is_sufficient: bool
+    insufficient_note: str | None = None
+    scale_averages: dict[int, ScaleAverageEntry] | None = None
+    scale_distribution: dict[int, dict[str, int]] | None = None
+    department_comparison: list[DepartmentSummary] | None = None
 
 
 class MethodologyMetaResponse(BaseModel):
@@ -124,6 +171,7 @@ class ConsentResponse(BaseModel):
 class SessionStateInfoResponse(BaseModel):
     session_id: uuid.UUID
     status: str
+    invite_token: str
     next_question_index: int
     total_questions: int
     progress_percent: int

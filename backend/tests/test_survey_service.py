@@ -149,9 +149,9 @@ async def test_list_for_researcher_filters_status(db_session: AsyncSession) -> N
     drafts, total_drafts = await service.list_for_researcher(user.id, status="draft")
     actives, total_actives = await service.list_for_researcher(user.id, status="active")
 
-    assert {s.name for s in drafts} == {"A"}
+    assert {row[0].name for row in drafts} == {"A"}
     assert total_drafts == 1
-    assert {s.name for s in actives} == {"B"}
+    assert {row[0].name for row in actives} == {"B"}
     assert total_actives == 1
 
 

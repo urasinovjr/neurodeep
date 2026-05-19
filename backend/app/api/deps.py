@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator, Callable
+from functools import lru_cache
 from typing import Annotated
 
 import redis.asyncio as aioredis
@@ -23,9 +24,12 @@ from app.db.repositories import (
     UserRepository,
 )
 from app.db.session import AsyncSessionLocal
+from app.services.analytics_service import AnalyticsService
 from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
 from app.services.methodology_service import MethodologyService
+from app.services.pdf_service import PdfService
+from app.services.profile_service import ProfileService
 from app.services.session_service import SurveySessionService
 from app.services.survey_service import SurveyService
 
@@ -121,21 +125,69 @@ SurveyServiceDep = Annotated[SurveyService, Depends(get_survey_service)]
 RedisDep = Annotated[aioredis.Redis, Depends(get_redis)]
 
 
+async def get_profile_service(session: SessionDep) -> ProfileService:
+    return ProfileService(
+        session_repo=SurveySessionRepository(session),
+        survey_repo=SurveyRepository(session),
+        methodology_repo=MethodologyRepository(session),
+        scale_repo=ScaleRepository(session),
+        scale_score_repo=ScaleScoreRepository(session),
+    )
+
+
+ProfileServiceDep = Annotated[ProfileService, Depends(get_profile_service)]
+
+
 async def get_session_service(
     session: SessionDep,
     redis_client: RedisDep,
+    profile_service: ProfileServiceDep,
 ) -> SurveySessionService:
     return SurveySessionService(
         survey_repo=SurveyRepository(session),
         session_repo=SurveySessionRepository(session),
         question_repo=QuestionRepository(session),
+        scale_repo=ScaleRepository(session),
         scale_score_repo=ScaleScoreRepository(session),
         methodology_repo=MethodologyRepository(session),
         redis_client=redis_client,
         audit_service=AuditService(AuditLogRepository(session)),
+        profile_service=profile_service,
     )
 
 
 SurveySessionServiceDep = Annotated[
     SurveySessionService, Depends(get_session_service)
 ]
+
+
+async def get_analytics_service(session: SessionDep) -> AnalyticsService:
+    return AnalyticsService(
+        survey_repo=SurveyRepository(session),
+        invitation_repo=InvitationRepository(session),
+        session_repo=SurveySessionRepository(session),
+        scale_repo=ScaleRepository(session),
+        scale_score_repo=ScaleScoreRepository(session),
+    )
+
+
+AnalyticsServiceDep = Annotated[AnalyticsService, Depends(get_analytics_service)]
+
+
+async def get_audit_service(session: SessionDep) -> AuditService:
+    return AuditService(AuditLogRepository(session))
+
+
+AuditServiceDep = Annotated[AuditService, Depends(get_audit_service)]
+
+
+@lru_cache(maxsize=1)
+def _pdf_service_singleton() -> PdfService:
+    return PdfService()
+
+
+def get_pdf_service() -> PdfService:
+    return _pdf_service_singleton()
+
+
+PdfServiceDep = Annotated[PdfService, Depends(get_pdf_service)]

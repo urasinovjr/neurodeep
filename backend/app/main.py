@@ -1,6 +1,7 @@
 from typing import cast
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
@@ -40,6 +41,15 @@ app.add_middleware(
 async def app_error_handler(_: Request, exc: Exception) -> JSONResponse:
     app_error = cast(AppError, exc)
     return JSONResponse({"detail": app_error.message}, status_code=app_error.status_code)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(_: Request, exc: Exception) -> JSONResponse:
+    validation_error = cast(RequestValidationError, exc)
+    return JSONResponse(
+        {"detail": "Некорректные данные запроса", "errors": validation_error.errors()},
+        status_code=422,
+    )
 
 
 @app.get("/health")
